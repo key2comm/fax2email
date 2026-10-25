@@ -270,7 +270,10 @@ EOF
 /@$escaped\$/ REJECT Send to <fax number>@$domain
 EOF
 
+    # Debian's "No configuration" install leaves no main.cf; postconf fills in an empty one.
+    [[ -f /etc/postfix/main.cf ]] || install -m 644 /dev/null /etc/postfix/main.cf
     postconf -e \
+        "compatibility_level = 3.6" \
         "myhostname = $domain" \
         "mydestination = localhost" \
         "inet_interfaces = all" \
