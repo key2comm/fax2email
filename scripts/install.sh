@@ -242,6 +242,10 @@ EOF
         chown root:freeswitch /etc/freeswitch/tls/*.pem
         chmod 640 /etc/freeswitch/tls/*.pem
     fi
+
+    # The FreeSWITCH secrets were just added to .env; rebuild the config cache so the
+    # app accepts FreeSWITCH's configuration requests.
+    artisan optimize >/dev/null
 }
 
 create_admin() {
