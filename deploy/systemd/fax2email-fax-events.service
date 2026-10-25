@@ -1,0 +1,15 @@
+[Unit]
+Description=fax2email fax listener (records faxes as FreeSWITCH receives them)
+After=fax2email-freeswitch.service postgresql.service
+Wants=fax2email-freeswitch.service
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/fax2email
+ExecStart=/usr/bin/php /var/www/html/fax2email/artisan fax2email:fax-events
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

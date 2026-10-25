@@ -39,6 +39,46 @@ class EventSocket
         return $this->readReply()['body'];
     }
 
+    /**
+     * Subscribe to events (e.g. "CUSTOM spandsp::rxfaxresult") and call
+     * $onEvent with each event's headers. Returns when the connection drops.
+     *
+     * @param  callable(array<string, string>): void  $onEvent
+     */
+    public function listen(string $events, callable $onEvent): void
+    {
+        $this->connect();
+        fwrite($this->socket, "event plain {$events}\n\n");
+        $this->readReply();
+        stream_set_timeout($this->socket, 60);
+
+        while (! feof($this->socket)) {
+            try {
+                $reply = $this->readReply();
+            } catch (RuntimeException) {
+                continue; // Nothing happened for a minute; keep waiting.
+            }
+
+            if (($reply['headers']['Content-Type'] ?? '') === 'text/disconnect-notice') {
+                break;
+            }
+            if (($reply['headers']['Content-Type'] ?? '') !== 'text/event-plain') {
+                continue;
+            }
+
+            $event = [];
+            foreach (explode("\n", $reply['body']) as $line) {
+                if (str_contains($line, ': ')) {
+                    [$name, $value] = explode(': ', $line, 2);
+                    $event[$name] = urldecode(trim($value));
+                }
+            }
+            $onEvent($event);
+        }
+
+        $this->close();
+    }
+
     public function close(): void
     {
         if ($this->socket) {

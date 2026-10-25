@@ -249,7 +249,7 @@ class SipTrunkTest extends TestCase
         $this->assertSame(['198.51.100.20/32', '203.0.113.10/32', '203.0.113.11/32'], $nodes);
 
         $dialplan = $this->withBasicAuth('freeswitch', 'xml-secret')->post('/freeswitch/xml', ['section' => 'dialplan', 'Caller-Context' => 'public'])->getContent();
-        $this->assertStringContainsString('application="rxfax"', $dialplan);
-        $this->assertStringContainsString('fax_enable_t38=true', $dialplan);
+        // No fax number is set up for this call, so it is refused (see FaxReceptionTest for answered calls).
+        $this->assertStringContainsString('data="UNALLOCATED_NUMBER"', $dialplan);
     }
 }

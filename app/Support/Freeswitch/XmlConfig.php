@@ -2,6 +2,7 @@
 
 namespace App\Support\Freeswitch;
 
+use App\Models\FaxNumber;
 use App\Models\SipTrunk;
 use DOMDocument;
 use DOMElement;
@@ -104,23 +105,35 @@ class XmlConfig
     }
 
     /**
-     * Incoming calls from trunks: answer as a fax machine (T.38 when the
-     * provider offers it, G.711 otherwise) and save the fax as a TIFF.
+     * The dialplan for one incoming call. FreeSWITCH asks for it per call, so
+     * the dialled number decides what happens: a known fax number is answered
+     * as a fax machine (T.38 when the provider offers it, G.711 otherwise) and
+     * saved as a TIFF; any other number is refused as unallocated.
      */
-    public function dialplan(): string
+    public function dialplan(?FaxNumber $number): string
     {
         $section = $this->section('dialplan', 'fax2email dialplan');
         $context = $this->el($section, 'context', ['name' => 'public']);
-        $extension = $this->el($context, 'extension', ['name' => 'receive_fax']);
+        $extension = $this->el($context, 'extension', ['name' => $number ? 'receive_fax' : 'unknown_number']);
         $condition = $this->el($extension, 'condition', ['field' => 'destination_number', 'expression' => '^(.*)$']);
 
+        if ($number === null) {
+            $this->el($condition, 'action', ['application' => 'hangup', 'data' => 'UNALLOCATED_NUMBER']);
+
+            return $this->doc->saveXML();
+        }
+
+        // The number id is part of the file name, so a fax can still be matched
+        // to its account if the "fax received" event is ever missed.
         $faxDir = config('fax2email.freeswitch.fax_dir');
         foreach ([
+            ['set', "fax2email_number_id={$number->id}"],
+            ['set', 'verbose_events=true'],
             ['set', 'fax_enable_t38=true'],
             ['set', 'fax_enable_t38_request=true'],
             ['set', 'fax_use_ecm=true'],
             ['set', 'fax_ident=fax2email'],
-            ['set', "fax_file={$faxDir}/\${strftime(%Y-%m-%d)}-\${uuid}.tif"],
+            ['set', "fax_file={$faxDir}/\${strftime(%Y-%m-%d)}-{$number->id}-\${uuid}.tif"],
             ['answer', ''],
             ['playback', 'silence_stream://2000'],
             ['rxfax', '${fax_file}'],

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FaxNumber;
 use App\Support\Freeswitch\XmlConfig;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -30,7 +31,9 @@ class FreeswitchXmlController extends Controller
             $section === 'configuration' && $request->input('key_value') === 'sofia.conf' => (new XmlConfig)->sofia(),
             $section === 'configuration' && $request->input('key_value') === 'acl.conf' => (new XmlConfig)->acl(),
             // Calls from trunks arrive in the "public" context.
-            $section === 'dialplan' && $request->input('Caller-Context', 'public') === 'public' => (new XmlConfig)->dialplan(),
+            $section === 'dialplan' && $request->input('Caller-Context', 'public') === 'public' => (new XmlConfig)->dialplan(
+                FaxNumber::findForCall((string) $request->input('Hunt-Destination-Number', $request->input('Caller-Destination-Number', ''))),
+            ),
             default => XmlConfig::notFound(),
         };
 

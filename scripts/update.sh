@@ -59,7 +59,7 @@ finish_deploy() {
     local fpm; fpm="$(php_fpm_service)"
     [[ -n "$fpm" ]] && systemctl reload "$fpm"
     artisan queue:restart
-    systemctl restart fax2email-queue.service || true
+    systemctl restart fax2email-queue.service fax2email-fax-events.service || true
     systemctl start fax2email-firewall.service || true
     # Restarting FreeSWITCH drops calls in progress, so only do it when it changed.
     if [[ "$FREESWITCH_CONFIG_CHANGED" == 1 || "${FREESWITCH_REBUILT:-0}" == 1 ]]; then

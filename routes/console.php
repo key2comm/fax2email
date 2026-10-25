@@ -1,5 +1,6 @@
 <?php
 
+use App\Support\Fax\FaxInbox;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -14,3 +15,6 @@ Schedule::command('model:prune')->daily();
 // SIP trunks: registration status for the portal, and provider hostname changes.
 Schedule::command('fax2email:trunk-status')->everyMinute()->withoutOverlapping();
 Schedule::command('fax2email:trunk-resolve')->everyFiveMinutes()->withoutOverlapping();
+
+// Picks up any received fax whose "fax received" event was missed.
+Schedule::call(fn () => app(FaxInbox::class)->sweep())->name('fax-sweep')->everyFiveMinutes()->withoutOverlapping();

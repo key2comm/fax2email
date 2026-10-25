@@ -6,6 +6,8 @@ import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     IconBuilding,
+    IconFileText,
+    IconHash,
     IconLayoutDashboard,
     IconLock,
     IconLogout,
@@ -38,6 +40,8 @@ const roleLabels: Record<string, string> = {
 
 const menu = computed<NavItem[]>(() => [
     { title: 'Dashboard', href: '/dashboard', icon: IconLayoutDashboard },
+    ...(page.props.auth.can.viewFaxes ? [{ title: 'Faxes', href: '/faxes', icon: IconFileText }] : []),
+    ...(page.props.auth.can.manageNumbers ? [{ title: 'Fax numbers', href: '/numbers', icon: IconHash }] : []),
     ...(page.props.auth.can.manageAccounts ? [{ title: 'Accounts', href: '/accounts', icon: IconBuilding }] : []),
     ...(page.props.auth.can.manageUsers ? [{ title: 'Users', href: '/users', icon: IconUsers }] : []),
     ...(page.props.auth.can.manageSettings

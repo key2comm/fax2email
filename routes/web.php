@@ -5,21 +5,49 @@ use App\Http\Controllers\Admin\FirewallController;
 use App\Http\Controllers\Admin\MailLogController;
 use App\Http\Controllers\Admin\MailSettingsController;
 use App\Http\Controllers\Admin\SipTrunkController;
+use App\Http\Controllers\FaxController;
+use App\Http\Controllers\FaxNumberController;
 use App\Http\Controllers\FreeswitchXmlController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\UserController;
+use App\Models\Fax;
+use App\Models\FaxNumber;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::redirect('/', '/dashboard')->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('dashboard', function () {
-        return Inertia::render('Dashboard');
+    Route::get('dashboard', function (Request $request) {
+        $faxes = Fax::visibleTo($request->user())->where('created_at', '>', now()->subDays(30));
+
+        return Inertia::render('Dashboard', [
+            'stats' => [
+                'received' => (clone $faxes)->count(),
+                'delivered' => (clone $faxes)->where('status', 'delivered')->count(),
+                'numbers' => FaxNumber::visibleTo($request->user())->where('enabled', true)->count(),
+            ],
+            'recent' => Fax::visibleTo($request->user())->with('faxNumber:id,number,label')->latest('id')->limit(5)->get()
+                ->map(fn (Fax $fax) => [
+                    'id' => $fax->id,
+                    'from' => $fax->caller_number ?: 'Unknown',
+                    'to' => $fax->faxNumber?->formatted() ?? $fax->called_number,
+                    'pages' => $fax->pages,
+                    'status' => $fax->status,
+                    'has_pdf' => $fax->pdf_path !== null,
+                    'created_at' => $fax->created_at->toIso8601String(),
+                ]),
+        ]);
     })->name('dashboard');
 
     Route::resource('accounts', AccountController::class)->only(['index', 'store', 'update', 'destroy']);
+
+    Route::get('faxes', [FaxController::class, 'index'])->name('faxes.index');
+    Route::get('faxes/{fax}/pdf', [FaxController::class, 'download'])->name('faxes.download');
+    Route::post('faxes/{fax}/resend', [FaxController::class, 'resend'])->name('faxes.resend');
+    Route::resource('numbers', FaxNumberController::class)->except('show');
 
     Route::get('users', [UserController::class, 'index'])->name('users.index');
     Route::patch('users/{user}/role', [UserController::class, 'updateRole'])->name('users.role');

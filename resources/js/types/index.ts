@@ -6,6 +6,8 @@ export interface Auth {
         manageAccounts: boolean;
         manageUsers: boolean;
         manageSettings: boolean;
+        viewFaxes: boolean;
+        manageNumbers: boolean;
     };
 }
 

@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Models\Account;
+use App\Models\Fax;
+use App\Models\FaxNumber;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -50,6 +52,8 @@ class HandleInertiaRequests extends Middleware
                     'manageAccounts' => $request->user()?->can('viewAny', Account::class) ?? false,
                     'manageUsers' => $request->user()?->can('viewAny', User::class) ?? false,
                     'manageSettings' => $request->user()?->can('manage-settings') ?? false,
+                    'viewFaxes' => $request->user()?->can('viewAny', Fax::class) ?? false,
+                    'manageNumbers' => $request->user()?->can('viewAny', FaxNumber::class) ?? false,
                 ],
             ],
         ]);

@@ -170,7 +170,7 @@ configure_nginx() {
 
 configure_services() {
     install_system_files "$SRC_DIR"
-    systemctl enable --now fax2email-queue.service fax2email-scheduler.timer
+    systemctl enable --now fax2email-queue.service fax2email-scheduler.timer fax2email-fax-events.service
     systemctl enable fax2email-freeswitch.service
     systemctl restart fax2email-freeswitch.service
     systemctl enable fail2ban fax2email-firewall.service
