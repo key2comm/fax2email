@@ -9,6 +9,9 @@
 #   --server-name NAME   Hostname or IP the portal is reached at (default: this server's first IP)
 #   --admin-name NAME    Name for the first Admin login (prompted if omitted)
 #   --admin-email EMAIL  Email for the first Admin login (prompted if omitted)
+#   --admin-password-file FILE
+#                        Read the first Admin's password from FILE instead of prompting,
+#                        for unattended installs. Delete the file afterwards.
 #
 # Everything is installed under /var/www/html. Re-running it is safe: it keeps the
 # existing .env, database and Admin, and repairs anything that is missing.
@@ -182,6 +185,12 @@ create_admin() {
     [[ -n "$ADMIN_NAME" ]] && args+=(--name "$ADMIN_NAME")
     [[ -n "$ADMIN_EMAIL" ]] && args+=(--email "$ADMIN_EMAIL")
 
+    if [[ -n "$ADMIN_PASSWORD_FILE" ]]; then
+        [[ -n "$ADMIN_NAME" && -n "$ADMIN_EMAIL" ]] || die "--admin-password-file also needs --admin-name and --admin-email."
+        artisan fax2email:create-admin "${args[@]}" --password-stdin <"$ADMIN_PASSWORD_FILE"
+        return
+    fi
+
     local attempt
     for attempt in 1 2 3; do
         if artisan fax2email:create-admin "${args[@]}" </dev/tty; then
@@ -193,13 +202,14 @@ create_admin() {
 }
 
 main() {
-    SERVER_NAME="" ADMIN_NAME="" ADMIN_EMAIL=""
+    SERVER_NAME="" ADMIN_NAME="" ADMIN_EMAIL="" ADMIN_PASSWORD_FILE=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --server-name) SERVER_NAME="$2"; shift 2 ;;
             --admin-name) ADMIN_NAME="$2"; shift 2 ;;
             --admin-email) ADMIN_EMAIL="$2"; shift 2 ;;
-            -h | --help) sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+            --admin-password-file) ADMIN_PASSWORD_FILE="$(readlink -f "$2")"; shift 2 ;;
+            -h | --help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
             *) die "Unknown option: $1 (see --help)" ;;
         esac
     done
@@ -209,7 +219,10 @@ main() {
         || die "Run this from an unpacked release archive, not a source checkout."
     [[ "$SRC_DIR" != "$APP_DIR" ]] || die "This copy is already installed. Use: sudo fax2email-update"
     [[ -d "$APP_DIR/.git" ]] && die "$APP_DIR is a development checkout. Install on a different server."
-    [[ -t 0 || -e /dev/tty ]] || die "The installer needs a terminal to ask for the Admin password."
+    if [[ -z "$ADMIN_PASSWORD_FILE" ]] && ! { : </dev/tty; } 2>/dev/null; then
+        die "The installer needs a terminal to ask for the Admin password (or use --admin-password-file)."
+    fi
+    [[ -z "$ADMIN_PASSWORD_FILE" || -r "$ADMIN_PASSWORD_FILE" ]] || die "Cannot read $ADMIN_PASSWORD_FILE."
     cd /
 
     step "Checking the operating system"

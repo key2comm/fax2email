@@ -16,6 +16,7 @@ class CreateAdmin extends Command
     protected $signature = 'fax2email:create-admin
                             {--name= : The admin\'s full name}
                             {--email= : The admin\'s email address}
+                            {--password-stdin : Read the password from standard input instead of prompting}
                             {--skip-if-exists : Do nothing if an Admin already exists (lets the installer be re-run)}';
 
     protected $description = 'Create an Admin user (used by the installer to set up the first login)';
@@ -30,7 +31,9 @@ class CreateAdmin extends Command
 
         $name = $this->option('name') ?: text('Name', required: true);
         $email = $this->option('email') ?: text('Email address', required: true);
-        $password = password('Password', required: true, hint: 'At least 8 characters.');
+        $password = $this->option('password-stdin')
+            ? rtrim((string) stream_get_contents(STDIN), "\r\n")
+            : password('Password', required: true, hint: 'At least 8 characters.');
 
         $validator = Validator::make(
             ['name' => $name, 'email' => $email, 'password' => $password],
