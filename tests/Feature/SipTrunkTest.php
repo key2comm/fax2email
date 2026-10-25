@@ -83,6 +83,7 @@ class SipTrunkTest extends TestCase
             'transport' => 'udp',
             'host' => 'sip.provider.com',
             'port' => 5060,
+            'dial_format' => 'e164',
             'username' => '',
             'password' => '',
             'extra_addresses' => "sip2.provider.com\n192.0.2.0/24",

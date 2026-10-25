@@ -1,6 +1,7 @@
 <?php
 
 use App\Support\Fax\FaxInbox;
+use App\Support\Fax\FaxOutbox;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -18,3 +19,6 @@ Schedule::command('fax2email:trunk-resolve')->everyFiveMinutes()->withoutOverlap
 
 // Picks up any received fax whose "fax received" event was missed.
 Schedule::call(fn () => app(FaxInbox::class)->sweep())->name('fax-sweep')->everyFiveMinutes()->withoutOverlapping();
+
+// Retries or fails outgoing faxes whose call result never arrived.
+Schedule::call(fn () => app(FaxOutbox::class)->sweep())->name('fax-outbox-sweep')->everyFiveMinutes()->withoutOverlapping();

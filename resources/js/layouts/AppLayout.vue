@@ -5,6 +5,7 @@ import { useTheme } from '@/composables/useTheme';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
+    IconAddressBook,
     IconBuilding,
     IconFileText,
     IconHash,
@@ -14,6 +15,7 @@ import {
     IconMail,
     IconMoon,
     IconPlugConnected,
+    IconSend,
     IconShield,
     IconSun,
     IconUser,
@@ -40,7 +42,9 @@ const roleLabels: Record<string, string> = {
 
 const menu = computed<NavItem[]>(() => [
     { title: 'Dashboard', href: '/dashboard', icon: IconLayoutDashboard },
+    ...(page.props.auth.can.sendFaxes ? [{ title: 'Send fax', href: '/send', icon: IconSend }] : []),
     ...(page.props.auth.can.viewFaxes ? [{ title: 'Faxes', href: '/faxes', icon: IconFileText }] : []),
+    ...(page.props.auth.can.useContacts ? [{ title: 'Address book', href: '/contacts', icon: IconAddressBook }] : []),
     ...(page.props.auth.can.manageNumbers ? [{ title: 'Fax numbers', href: '/numbers', icon: IconHash }] : []),
     ...(page.props.auth.can.manageAccounts ? [{ title: 'Accounts', href: '/accounts', icon: IconBuilding }] : []),
     ...(page.props.auth.can.manageUsers ? [{ title: 'Users', href: '/users', icon: IconUsers }] : []),

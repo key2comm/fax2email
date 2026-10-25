@@ -50,14 +50,14 @@ install_packages() {
         apt-get update -q
         apt-get install -y -q nginx postgresql postgresql-client ca-certificates curl rsync tar \
             php-fpm php-cli php-pgsql php-mbstring php-xml php-intl php-zip php-bcmath php-gd php-curl \
-            nftables fail2ban python3-systemd openssl
+            nftables fail2ban python3-systemd openssl ghostscript
     else
         # fail2ban comes from EPEL. Only the server, journal and SELinux parts are
         # installed; the firewalld and sendmail add-ons are not needed.
         dnf install -y -q epel-release
         dnf install -y -q nginx postgresql-server postgresql curl rsync tar policycoreutils-python-utils \
             php-fpm php-cli php-pgsql php-mbstring php-xml php-intl php-pecl-zip php-bcmath php-gd \
-            php-opcache php-process nftables fail2ban-server fail2ban-systemd fail2ban-selinux openssl
+            php-opcache php-process nftables fail2ban-server fail2ban-systemd fail2ban-selinux openssl ghostscript
     fi
 }
 
@@ -89,6 +89,22 @@ configure_web_user() {
         [[ -d "$dir" ]] && chgrp -R "$WEB_USER" "$dir"
     done
     return 0
+}
+
+# PHP's default upload limits (2 MB per file) are too small for faxing PDFs.
+configure_php_limits() {
+    local ini
+    if [[ "$OS" == debian ]]; then
+        ini="/etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/fpm/conf.d/99-fax2email.ini"
+    else
+        ini=/etc/php.d/99-fax2email.ini
+    fi
+    cat > "$ini" <<EOF
+; Written by the fax2email installer: room for faxing several PDFs at once.
+upload_max_filesize = 20M
+post_max_size = 60M
+max_file_uploads = 20
+EOF
 }
 
 configure_postgres() {
@@ -306,6 +322,7 @@ main() {
     install_packages
     step "Configuring the www-data web user"
     configure_web_user
+    configure_php_limits
     step "Setting up the PostgreSQL database"
     configure_postgres
     step "Copying fax2email v$(tr -d '[:space:]' < "$SRC_DIR/VERSION") to $APP_DIR"

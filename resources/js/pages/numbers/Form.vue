@@ -10,6 +10,7 @@ interface FaxNumber {
     label: string | null;
     enabled: boolean;
     account_id: number;
+    outbound_trunk_id: number | null;
     recipients: string;
     owner_emails: string[];
 }
@@ -17,6 +18,7 @@ interface FaxNumber {
 const props = defineProps<{
     number: FaxNumber | null;
     accounts: { id: number; name: string }[];
+    trunks: { id: number; name: string }[];
 }>();
 
 // Account Owners get no account list: they can only change the label and recipients.
@@ -25,6 +27,7 @@ const isStaff = computed(() => props.accounts.length > 0);
 const form = useForm({
     number: props.number?.number ?? '',
     account_id: props.number?.account_id ?? null,
+    outbound_trunk_id: props.number?.outbound_trunk_id ?? null,
     label: props.number?.label ?? '',
     enabled: props.number?.enabled ?? true,
     recipients: props.number?.recipients ?? '',
@@ -101,6 +104,21 @@ const submit = () => {
                             <input v-model="form.enabled" class="form-check-input" type="checkbox" />
                             <span class="form-check-label">Receiving faxes</span>
                         </label>
+                    </div>
+
+                    <div v-if="isStaff" class="col-md-8">
+                        <label class="form-label" for="outbound_trunk_id">Send faxes through</label>
+                        <select
+                            id="outbound_trunk_id"
+                            v-model="form.outbound_trunk_id"
+                            class="form-select"
+                            :class="{ 'is-invalid': form.errors.outbound_trunk_id }"
+                        >
+                            <option :value="null">Default (first enabled trunk)</option>
+                            <option v-for="trunk in trunks" :key="trunk.id" :value="trunk.id">{{ trunk.name }}</option>
+                        </select>
+                        <InputError :message="form.errors.outbound_trunk_id" />
+                        <small class="form-hint">Usually the trunk of the provider this number belongs to.</small>
                     </div>
 
                     <div class="col-12">

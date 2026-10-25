@@ -5,10 +5,12 @@ use App\Http\Controllers\Admin\FirewallController;
 use App\Http\Controllers\Admin\MailLogController;
 use App\Http\Controllers\Admin\MailSettingsController;
 use App\Http\Controllers\Admin\SipTrunkController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\FaxController;
 use App\Http\Controllers\FaxNumberController;
 use App\Http\Controllers\FreeswitchXmlController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\SendFaxController;
 use App\Http\Controllers\UserController;
 use App\Models\Fax;
 use App\Models\FaxNumber;
@@ -48,6 +50,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('faxes/{fax}/pdf', [FaxController::class, 'download'])->name('faxes.download');
     Route::post('faxes/{fax}/resend', [FaxController::class, 'resend'])->name('faxes.resend');
     Route::resource('numbers', FaxNumberController::class)->except('show');
+    Route::get('send', [SendFaxController::class, 'create'])->name('faxes.send');
+    Route::post('send', [SendFaxController::class, 'store'])->name('faxes.send.store');
+    Route::resource('contacts', ContactController::class)->only(['index', 'store', 'update', 'destroy']);
 
     Route::get('users', [UserController::class, 'index'])->name('users.index');
     Route::patch('users/{user}/role', [UserController::class, 'updateRole'])->name('users.role');

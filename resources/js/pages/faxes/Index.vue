@@ -2,17 +2,24 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { IconChevronLeft, IconChevronRight, IconDownload, IconInbox, IconMailForward } from '@tabler/icons-vue';
-import { reactive, watch } from 'vue';
+import { IconChevronLeft, IconChevronRight, IconDownload, IconInbox, IconMailForward, IconSend } from '@tabler/icons-vue';
+import { computed, reactive, watch } from 'vue';
+
+type Status = 'received' | 'delivered' | 'queued' | 'sending' | 'sent' | 'failed';
 
 interface FaxRow {
     id: number;
-    status: 'received' | 'delivered' | 'failed';
+    status: Status;
     caller_number: string | null;
     caller_name: string | null;
     remote_station_id: string | null;
     to: string | null;
     to_label: string | null;
+    from: string | null;
+    sent_by: string | null;
+    source: string | null;
+    attempts: number;
+    next_attempt_at: string | null;
     account: string | null;
     pages: number;
     result_text: string | null;
@@ -34,6 +41,7 @@ interface Paginated<T> {
 
 const props = defineProps<{
     faxes: Paginated<FaxRow>;
+    direction: 'inbound' | 'outbound';
     filters: { status: string; number: string | number; account: string | number };
     numbers: { id: number; label: string }[];
     accounts: { id: number; name: string }[];
@@ -41,18 +49,26 @@ const props = defineProps<{
 }>();
 
 const page = usePage<SharedData>();
+const outbound = computed(() => props.direction === 'outbound');
 const filters = reactive({ ...props.filters });
 
 watch(filters, () => {
-    const query = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== '' && value !== null));
+    const query = Object.fromEntries(
+        Object.entries({ ...filters, direction: props.direction }).filter(([, value]) => value !== '' && value !== null),
+    );
     router.get(route('faxes.index'), query, { preserveState: true, preserveScroll: true });
 });
 
-const statuses = {
+const statuses: Record<Status, { label: string; badge: string }> = {
     received: { label: 'Processing', badge: 'bg-yellow-lt' },
     delivered: { label: 'Delivered', badge: 'bg-green-lt' },
+    queued: { label: 'Queued', badge: 'bg-azure-lt' },
+    sending: { label: 'Sending…', badge: 'bg-yellow-lt' },
+    sent: { label: 'Sent', badge: 'bg-green-lt' },
     failed: { label: 'Failed', badge: 'bg-red-lt' },
 };
+
+const statusOptions = computed<Status[]>(() => (outbound.value ? ['queued', 'sending', 'sent', 'failed'] : ['delivered', 'received', 'failed']));
 
 const resend = (fax: FaxRow) => {
     router.post(route('faxes.resend', fax.id), {}, { preserveScroll: true });
@@ -60,12 +76,30 @@ const resend = (fax: FaxRow) => {
 </script>
 
 <template>
-    <Head title="Faxes" />
+    <Head :title="outbound ? 'Sent faxes' : 'Received faxes'" />
 
-    <AppLayout title="Received faxes" :pretitle="page.props.auth.user.account?.name ?? 'All accounts'">
+    <AppLayout title="Faxes" :pretitle="page.props.auth.user.account?.name ?? 'All accounts'">
+        <template v-if="page.props.auth.can.sendFaxes" #actions>
+            <Link :href="route('faxes.send')" class="btn btn-primary">
+                <IconSend class="icon" />
+                Send a fax
+            </Link>
+        </template>
+
         <div v-if="page.props.errors.fax" class="alert alert-danger" role="alert">{{ page.props.errors.fax }}</div>
 
         <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs">
+                    <li class="nav-item">
+                        <Link :href="route('faxes.index')" class="nav-link" :class="{ active: !outbound }">Received</Link>
+                    </li>
+                    <li class="nav-item">
+                        <Link :href="route('faxes.index', { direction: 'outbound' })" class="nav-link" :class="{ active: outbound }">Sent</Link>
+                    </li>
+                </ul>
+            </div>
+
             <div class="card-body border-bottom py-3">
                 <div class="row g-2">
                     <div v-if="accounts.length" class="col-sm-auto">
@@ -83,9 +117,7 @@ const resend = (fax: FaxRow) => {
                     <div class="col-sm-auto">
                         <select v-model="filters.status" class="form-select" aria-label="Status">
                             <option value="">All statuses</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="received">Processing</option>
-                            <option value="failed">Failed</option>
+                            <option v-for="status in statusOptions" :key="status" :value="status">{{ statuses[status].label }}</option>
                         </select>
                     </div>
                 </div>
@@ -93,9 +125,18 @@ const resend = (fax: FaxRow) => {
 
             <div v-if="faxes.data.length === 0" class="card-body">
                 <div class="empty">
-                    <div class="empty-icon"><IconInbox class="icon" /></div>
-                    <p class="empty-title">No faxes yet</p>
-                    <p class="empty-subtitle text-secondary">Faxes sent to your numbers will appear here and be emailed as PDFs.</p>
+                    <div class="empty-icon">
+                        <IconSend v-if="outbound" class="icon" />
+                        <IconInbox v-else class="icon" />
+                    </div>
+                    <p class="empty-title">{{ outbound ? 'No faxes sent yet' : 'No faxes yet' }}</p>
+                    <p class="empty-subtitle text-secondary">
+                        {{
+                            outbound
+                                ? 'Faxes you send from the portal or by email appear here.'
+                                : 'Faxes sent to your numbers will appear here and be emailed as PDFs.'
+                        }}
+                    </p>
                 </div>
             </div>
 
@@ -103,9 +144,9 @@ const resend = (fax: FaxRow) => {
                 <table class="table table-vcenter card-table">
                     <thead>
                         <tr>
-                            <th>Received</th>
-                            <th>From</th>
-                            <th>To</th>
+                            <th>{{ outbound ? 'Sent' : 'Received' }}</th>
+                            <th>{{ outbound ? 'To' : 'From' }}</th>
+                            <th>{{ outbound ? 'From' : 'To' }}</th>
                             <th v-if="accounts.length">Account</th>
                             <th>Pages</th>
                             <th>Status</th>
@@ -114,22 +155,50 @@ const resend = (fax: FaxRow) => {
                     </thead>
                     <tbody>
                         <tr v-for="fax in faxes.data" :key="fax.id">
-                            <td class="text-secondary text-nowrap">{{ new Date(fax.created_at).toLocaleString() }}</td>
-                            <td>
-                                <div class="font-monospace">{{ fax.caller_number || 'Unknown' }}</div>
-                                <div v-if="fax.remote_station_id" class="small text-secondary">{{ fax.remote_station_id }}</div>
+                            <td class="text-secondary text-nowrap">
+                                {{ new Date(fax.created_at).toLocaleString() }}
+                                <div v-if="outbound && fax.sent_by" class="small">
+                                    by {{ fax.sent_by }}{{ fax.source === 'email' ? ' (email)' : '' }}
+                                </div>
                             </td>
-                            <td>
-                                <div class="font-monospace">{{ fax.to }}</div>
-                                <div v-if="fax.to_label" class="small text-secondary">{{ fax.to_label }}</div>
-                            </td>
+                            <template v-if="outbound">
+                                <td>
+                                    <div class="font-monospace">{{ fax.to }}</div>
+                                    <div v-if="fax.to_label" class="small text-secondary">{{ fax.to_label }}</div>
+                                    <div v-if="fax.remote_station_id" class="small text-secondary">{{ fax.remote_station_id }}</div>
+                                </td>
+                                <td class="font-monospace text-secondary">{{ fax.from }}</td>
+                            </template>
+                            <template v-else>
+                                <td>
+                                    <div class="font-monospace">{{ fax.caller_number || 'Unknown' }}</div>
+                                    <div v-if="fax.remote_station_id" class="small text-secondary">{{ fax.remote_station_id }}</div>
+                                </td>
+                                <td>
+                                    <div class="font-monospace">{{ fax.to }}</div>
+                                    <div v-if="fax.to_label" class="small text-secondary">{{ fax.to_label }}</div>
+                                </td>
+                            </template>
                             <td v-if="accounts.length" class="text-secondary">{{ fax.account }}</td>
-                            <td>{{ fax.pages }}</td>
+                            <td>{{ fax.pages || '—' }}</td>
                             <td>
                                 <span class="badge" :class="statuses[fax.status].badge">{{ statuses[fax.status].label }}</span>
-                                <div v-if="fax.emailed_at" class="small text-secondary">Emailed {{ new Date(fax.emailed_at).toLocaleString() }}</div>
+                                <div v-if="outbound && fax.attempts > 0 && fax.status !== 'sent'" class="small text-secondary">
+                                    Attempt {{ fax.attempts
+                                    }}<template v-if="fax.next_attempt_at"
+                                        >, retrying {{ new Date(fax.next_attempt_at).toLocaleTimeString() }}</template
+                                    >
+                                </div>
+                                <div v-if="!outbound && fax.emailed_at" class="small text-secondary">
+                                    Emailed {{ new Date(fax.emailed_at).toLocaleString() }}
+                                </div>
                                 <div v-if="fax.email_error" class="small text-danger">{{ fax.email_error }}</div>
-                                <div v-if="fax.status === 'failed' && fax.result_text" class="small text-secondary">{{ fax.result_text }}</div>
+                                <div
+                                    v-if="(fax.status === 'failed' || (outbound && fax.status === 'queued')) && fax.result_text"
+                                    class="small text-secondary"
+                                >
+                                    {{ fax.result_text }}
+                                </div>
                             </td>
                             <td>
                                 <div class="btn-list flex-nowrap">

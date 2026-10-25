@@ -54,6 +54,8 @@ class HandleInertiaRequests extends Middleware
                     'manageSettings' => $request->user()?->can('manage-settings') ?? false,
                     'viewFaxes' => $request->user()?->can('viewAny', Fax::class) ?? false,
                     'manageNumbers' => $request->user()?->can('viewAny', FaxNumber::class) ?? false,
+                    'sendFaxes' => $request->user()?->can('send-fax') ?? false,
+                    'useContacts' => $request->user()?->account_id !== null,
                 ],
             ],
         ]);

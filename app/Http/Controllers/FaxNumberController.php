@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Account;
 use App\Models\FaxNumber;
+use App\Models\SipTrunk;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -47,7 +49,7 @@ class FaxNumberController extends Controller
     {
         Gate::authorize('create', FaxNumber::class);
 
-        return Inertia::render('numbers/Form', ['number' => null, 'accounts' => Account::orderBy('name')->get(['id', 'name'])]);
+        return Inertia::render('numbers/Form', ['number' => null, 'accounts' => Account::orderBy('name')->get(['id', 'name']), 'trunks' => $this->trunks()]);
     }
 
     public function edit(Request $request, FaxNumber $number): Response
@@ -56,11 +58,12 @@ class FaxNumberController extends Controller
 
         return Inertia::render('numbers/Form', [
             'number' => [
-                ...$number->only('id', 'number', 'label', 'enabled', 'account_id'),
+                ...$number->only('id', 'number', 'label', 'enabled', 'account_id', 'outbound_trunk_id'),
                 'recipients' => implode("\n", $number->recipients ?? []),
                 'owner_emails' => $number->account->users()->where('role', 'account_owner')->pluck('email'),
             ],
             'accounts' => $request->user()->isStaff() ? Account::orderBy('name')->get(['id', 'name']) : [],
+            'trunks' => $request->user()->isStaff() ? $this->trunks() : [],
         ]);
     }
 
@@ -92,6 +95,14 @@ class FaxNumberController extends Controller
     }
 
     /**
+     * @return Collection<int, array{id: int, name: string}>
+     */
+    private function trunks()
+    {
+        return SipTrunk::orderBy('name')->get(['id', 'name'])->map(fn (SipTrunk $t) => ['id' => $t->id, 'name' => $t->name]);
+    }
+
+    /**
      * Account Owners may only change the label and recipients.
      *
      * @return array<string, mixed>
@@ -107,6 +118,7 @@ class FaxNumberController extends Controller
                 'number' => ['required', 'string', 'max:40'],
                 'account_id' => ['required', 'integer', Rule::exists(Account::class, 'id')],
                 'enabled' => ['required', 'boolean'],
+                'outbound_trunk_id' => ['nullable', 'integer', Rule::exists(SipTrunk::class, 'id')],
             ];
         }
         $validated = $request->validate($rules);

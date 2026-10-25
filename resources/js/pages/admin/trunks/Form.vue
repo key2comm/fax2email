@@ -12,6 +12,7 @@ interface Trunk {
     transport: 'udp' | 'tcp' | 'tls';
     host: string;
     port: number;
+    dial_format: 'e164' | 'e164_plus' | 'national';
     username: string | null;
     extra_addresses: string;
     has_password: boolean;
@@ -28,6 +29,7 @@ const form = useForm({
     transport: props.trunk?.transport ?? 'udp',
     host: props.trunk?.host ?? '',
     port: props.trunk?.port ?? 5060,
+    dial_format: props.trunk?.dial_format ?? 'e164',
     username: props.trunk?.username ?? '',
     password: '',
     extra_addresses: props.trunk?.extra_addresses ?? '',
@@ -150,6 +152,19 @@ const submit = () => {
                     <div class="col-12">
                         <small class="form-hint"
                             >Standard ports are 5060 for UDP and TCP, and 5061 for TLS. Use your provider's port if different.</small
+                        >
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label" for="dial_format">Dial numbers as</label>
+                        <select id="dial_format" v-model="form.dial_format" class="form-select" :class="{ 'is-invalid': form.errors.dial_format }">
+                            <option value="e164">15551234567 (country code, no +)</option>
+                            <option value="e164_plus">+15551234567 (with +)</option>
+                            <option value="national">5551234567 (10 digits in North America)</option>
+                        </select>
+                        <InputError :message="form.errors.dial_format" />
+                        <small class="form-hint"
+                            >How this provider wants fax numbers sent when you send a fax. Check your provider's documentation.</small
                         >
                     </div>
 

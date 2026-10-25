@@ -9,9 +9,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * A received fax. Status moves from "received" (FreeSWITCH finished the call)
- * to "delivered" (PDF made and emailed), or "failed" if the call did not
- * produce a usable fax. Files live on the local disk under faxes/.
+ * A received or sent fax. Files live on the local disk under faxes/.
+ *
+ * Received ("inbound"): "received" (call finished) -> "delivered" (PDF made
+ * and emailed), or "failed" if the call produced no usable fax.
+ *
+ * Sent ("outbound"): "queued" -> "sending" (call in progress) -> "sent", or
+ * back to "queued" with next_attempt_at set for a retry, or "failed".
  */
 class Fax extends Model
 {
@@ -19,7 +23,14 @@ class Fax extends Model
 
     public const KEEP_DAYS = 90;
 
-    public const STATUSES = ['received', 'delivered', 'failed'];
+    public const STATUSES = ['received', 'delivered', 'queued', 'sending', 'sent', 'failed'];
+
+    /**
+     * Attempts per outgoing fax before giving up, and the wait between them.
+     */
+    public const MAX_ATTEMPTS = 3;
+
+    public const RETRY_AFTER_MINUTES = 5;
 
     /**
      * The attributes that are mass assignable.
@@ -31,13 +42,21 @@ class Fax extends Model
         'account_id',
         'fax_number_id',
         'direction',
+        'source',
+        'user_id',
+        'sender_email',
         'status',
         'called_number',
+        'destination_number',
+        'destination_name',
         'caller_number',
         'caller_name',
         'remote_station_id',
         'pages',
         'result_text',
+        'hangup_cause',
+        'attempts',
+        'next_attempt_at',
         'tiff_path',
         'pdf_path',
     ];
@@ -51,6 +70,8 @@ class Fax extends Model
     {
         return [
             'emailed_at' => 'datetime',
+            'next_attempt_at' => 'datetime',
+            'completed_at' => 'datetime',
             'pages' => 'integer',
         ];
     }
@@ -69,6 +90,19 @@ class Fax extends Model
     public function faxNumber(): BelongsTo
     {
         return $this->belongsTo(FaxNumber::class);
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function isOutbound(): bool
+    {
+        return $this->direction === 'outbound';
     }
 
     /**

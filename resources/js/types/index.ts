@@ -8,6 +8,8 @@ export interface Auth {
         manageSettings: boolean;
         viewFaxes: boolean;
         manageNumbers: boolean;
+        sendFaxes: boolean;
+        useContacts: boolean;
     };
 }
 

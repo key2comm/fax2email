@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\Role;
+use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,6 +26,7 @@ class FaxNumber extends Model
         'label',
         'recipients',
         'enabled',
+        'outbound_trunk_id',
     ];
 
     /**
@@ -82,6 +84,24 @@ class FaxNumber extends Model
     }
 
     /**
+     * @return BelongsTo<SipTrunk, $this>
+     */
+    public function outboundTrunk(): BelongsTo
+    {
+        return $this->belongsTo(SipTrunk::class, 'outbound_trunk_id');
+    }
+
+    /**
+     * The trunk this number's faxes go out on: its own, or the first enabled trunk.
+     */
+    public function sendingTrunk(): ?SipTrunk
+    {
+        $trunk = $this->outboundTrunk;
+
+        return $trunk?->enabled ? $trunk : SipTrunk::where('enabled', true)->orderBy('id')->first();
+    }
+
+    /**
      * @return HasMany<Fax, $this>
      */
     public function faxes(): HasMany
@@ -118,11 +138,6 @@ class FaxNumber extends Model
      */
     public function formatted(): string
     {
-        $n = $this->number;
-        if (strlen($n) === 11 && $n[0] === '1') {
-            return sprintf('+1 (%s) %s-%s', substr($n, 1, 3), substr($n, 4, 3), substr($n, 7));
-        }
-
-        return strlen($n) > 7 ? "+{$n}" : $n;
+        return PhoneNumber::format($this->number);
     }
 }

@@ -20,6 +20,12 @@ class SipTrunk extends Model
     public const TRANSPORTS = ['udp', 'tcp', 'tls'];
 
     /**
+     * How the provider wants dialled numbers: 15551234567, +15551234567, or
+     * 5551234567 (national: the leading 1 dropped from North American numbers).
+     */
+    public const DIAL_FORMATS = ['e164', 'e164_plus', 'national'];
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -31,6 +37,7 @@ class SipTrunk extends Model
         'transport',
         'host',
         'port',
+        'dial_format',
         'username',
         'password',
         'extra_addresses',
@@ -86,6 +93,18 @@ class SipTrunk extends Model
     public function profileName(): string
     {
         return $this->transport === 'tls' ? 'fax2email-tls' : 'fax2email';
+    }
+
+    /**
+     * A stored number (digits with country code) as this provider expects it.
+     */
+    public function dialString(string $digits): string
+    {
+        return match ($this->dial_format) {
+            'e164_plus' => "+{$digits}",
+            'national' => strlen($digits) === 11 && $digits[0] === '1' ? substr($digits, 1) : $digits,
+            default => $digits,
+        };
     }
 
     public function registers(): bool

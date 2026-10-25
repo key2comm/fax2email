@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Enums\Role;
+use App\Models\FaxNumber;
 use App\Models\MailLog;
 use App\Models\User;
 use App\Support\MailSettings;
@@ -30,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::define('manage-settings', fn (User $user) => $user->role === Role::Admin);
+        // Sending needs an account with a number to send from.
+        Gate::define('send-fax', fn (User $user) => $user->account_id !== null
+            && FaxNumber::where('account_id', $user->account_id)->where('enabled', true)->exists());
 
         $this->app->resolving('mail.manager', fn () => MailSettings::configureFromStored());
 

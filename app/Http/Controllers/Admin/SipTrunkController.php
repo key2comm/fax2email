@@ -56,7 +56,7 @@ class SipTrunkController extends Controller
 
         return Inertia::render('admin/trunks/Form', [
             'trunk' => [
-                ...$trunk->only('id', 'name', 'enabled', 'auth_type', 'transport', 'host', 'port', 'username'),
+                ...$trunk->only('id', 'name', 'enabled', 'auth_type', 'transport', 'host', 'port', 'dial_format', 'username'),
                 'extra_addresses' => implode("\n", $trunk->extra_addresses ?? []),
                 'has_password' => filled($trunk->password),
             ],
@@ -111,6 +111,7 @@ class SipTrunkController extends Controller
             'transport' => ['required', Rule::in(SipTrunk::TRANSPORTS)],
             'host' => ['required', 'string', 'max:253'],
             'port' => ['required', 'integer', 'between:1,65535'],
+            'dial_format' => ['required', Rule::in(SipTrunk::DIAL_FORMATS)],
             'username' => ['nullable', 'required_if:auth_type,credentials', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'max:255'],
             'extra_addresses' => ['nullable', 'string', 'max:5000'],
