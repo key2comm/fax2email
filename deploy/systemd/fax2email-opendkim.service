@@ -1,0 +1,15 @@
+[Unit]
+Description=OpenDKIM signature checks for fax2email email-to-fax
+After=network-online.target
+Before=postfix.service
+
+[Service]
+Type=simple
+User=opendkim
+Group=opendkim
+# -f: stay in the foreground. The config (with the secret AuthservID) is written by the installer.
+ExecStart=/usr/sbin/opendkim -f -x /etc/fax2email/opendkim.conf
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

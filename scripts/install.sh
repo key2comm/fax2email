@@ -9,6 +9,9 @@
 #   --server-name NAME   Hostname or IP the portal is reached at (default: this server's first IP)
 #   --admin-name NAME    Name for the first Admin login (prompted if omitted)
 #   --admin-email EMAIL  Email for the first Admin login (prompted if omitted)
+#   --fax-email-domain DOMAIN
+#                        Turn on email-to-fax: PDFs emailed to <number>@DOMAIN are faxed.
+#                        Point DOMAIN's MX record at this server. Kept on re-runs.
 #   --admin-password-file FILE
 #                        Read the first Admin's password from FILE instead of prompting,
 #                        for unattended installs. Delete the file afterwards.
@@ -195,6 +198,11 @@ configure_services() {
     systemctl restart fax2email-freeswitch.service
     systemctl enable fail2ban fax2email-firewall.service
     systemctl enable --now fax2email-firewall.path fax2email-firewall.timer
+    if [[ -n "$FAX_EMAIL_DOMAIN" ]]; then
+        systemctl enable fax2email-opendkim postfix fax2email-email-in.path
+        systemctl restart fax2email-opendkim postfix
+        systemctl start fax2email-email-in.path
+    fi
     # Creates the nftables table, writes the fail2ban jails and starts fail2ban.
     systemctl start fax2email-firewall.service
 }
@@ -204,13 +212,94 @@ configure_services() {
 configure_firewall() {
     if systemctl is-active --quiet firewalld; then
         firewall-cmd --quiet --permanent --add-service=http --add-service=https \
-            --add-port=5060/udp --add-port=5060/tcp --add-port=5061/tcp --add-port=16384-32768/udp
+            --add-port=5060/udp --add-port=5060/tcp --add-port=5061/tcp --add-port=16384-32768/udp \
+            ${FAX_EMAIL_DOMAIN:+--add-service=smtp}
         firewall-cmd --quiet --reload
     elif command -v ufw >/dev/null && ufw status | grep -q '^Status: active'; then
         local port
-        for port in 80/tcp 443/tcp 5060/udp 5060/tcp 5061/tcp 16384:32768/udp; do
+        for port in 80/tcp 443/tcp 5060/udp 5060/tcp 5061/tcp 16384:32768/udp ${FAX_EMAIL_DOMAIN:+25/tcp}; do
             ufw allow "$port" >/dev/null
         done
+    fi
+}
+
+# Email-to-fax: Postfix accepts mail for the fax domain (number addresses only)
+# and drops it in a spool that the app processes; OpenDKIM checks signatures and
+# marks its results with a secret AuthservID only the app knows.
+configure_email_to_fax() {
+    local domain="$1" uid gid authserv escaped
+    if [[ "$OS" == debian ]]; then
+        echo "postfix postfix/main_mailer_type select No configuration" | debconf-set-selections
+        apt-get install -y -q postfix opendkim
+    else
+        dnf install -y -q postfix opendkim
+    fi
+
+    authserv="$(env_value FAX_EMAIL_AUTHSERV_ID)"
+    [[ -n "$authserv" ]] || authserv="fax2email-$(php -r 'echo bin2hex(random_bytes(12));')"
+    set_env FAX_EMAIL_DOMAIN "$domain"
+    set_env FAX_EMAIL_AUTHSERV_ID "$authserv"
+
+    install -d -m 755 /etc/fax2email
+    cat > /etc/fax2email/opendkim.conf <<EOF
+# Written by the fax2email installer. Verify-only: checks DKIM signatures on
+# email-to-fax messages and reports the result for the app.
+Syslog              yes
+Mode                v
+Socket              inet:8891@127.0.0.1
+AuthservID          $authserv
+AlwaysAddARHeader   yes
+SoftwareHeader      no
+MinimumKeyBits      1024
+EOF
+    # Only fax2email's own OpenDKIM instance runs (the distro's would want the same port).
+    systemctl disable --now opendkim 2>/dev/null || true
+
+    # Postfix's own TLS certificate, so senders can deliver over an encrypted connection.
+    if [[ ! -f /etc/fax2email/smtpd.pem ]]; then
+        openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -subj "/CN=$domain" \
+            -keyout /etc/fax2email/smtpd.key -out /etc/fax2email/smtpd.pem 2>/dev/null
+        chmod 600 /etc/fax2email/smtpd.key
+    fi
+
+    install -d -o "$WEB_USER" -g "$WEB_USER" -m 750 /var/spool/fax2email
+    uid="$(id -u "$WEB_USER")"; gid="$(id -g "$WEB_USER")"
+    escaped="$(printf '%s' "$domain" | sed 's/\./\\./g')"
+    cat > /etc/postfix/fax2email-recipients.regexp <<EOF
+/^[0-9]{7,15}@$escaped\$/ OK
+/@$escaped\$/ REJECT Send to <fax number>@$domain
+EOF
+
+    postconf -e \
+        "myhostname = $domain" \
+        "mydestination = localhost" \
+        "inet_interfaces = all" \
+        "inet_protocols = all" \
+        "mynetworks = 127.0.0.0/8 [::1]/128" \
+        "smtpd_banner = \$myhostname ESMTP" \
+        "smtpd_helo_required = yes" \
+        "disable_vrfy_command = yes" \
+        "biff = no" \
+        "virtual_mailbox_domains = $domain" \
+        "virtual_mailbox_base = /var/spool/fax2email" \
+        "virtual_mailbox_maps = inline:{ @$domain=Maildir/ }" \
+        "virtual_uid_maps = static:$uid" \
+        "virtual_gid_maps = static:$gid" \
+        "virtual_minimum_uid = 1" \
+        "virtual_mailbox_limit = 0" \
+        "message_size_limit = 62914560" \
+        "smtpd_recipient_restrictions = permit_mynetworks, check_recipient_access regexp:/etc/postfix/fax2email-recipients.regexp, reject_unauth_destination" \
+        "smtpd_milters = inet:127.0.0.1:8891" \
+        "non_smtpd_milters = inet:127.0.0.1:8891" \
+        "milter_default_action = accept" \
+        "smtpd_tls_cert_file = /etc/fax2email/smtpd.pem" \
+        "smtpd_tls_key_file = /etc/fax2email/smtpd.key" \
+        "smtpd_tls_security_level = may"
+
+    if [[ "$OS" == rhel ]] && command -v selinuxenabled >/dev/null && selinuxenabled; then
+        semanage fcontext -a -t mail_spool_t "/var/spool/fax2email(/.*)?" 2>/dev/null \
+            || semanage fcontext -m -t mail_spool_t "/var/spool/fax2email(/.*)?"
+        restorecon -R /var/spool/fax2email /etc/fax2email /etc/postfix
     fi
 }
 
@@ -290,14 +379,15 @@ create_admin() {
 }
 
 main() {
-    SERVER_NAME="" ADMIN_NAME="" ADMIN_EMAIL="" ADMIN_PASSWORD_FILE=""
+    SERVER_NAME="" ADMIN_NAME="" ADMIN_EMAIL="" ADMIN_PASSWORD_FILE="" FAX_EMAIL_DOMAIN=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --server-name) SERVER_NAME="$2"; shift 2 ;;
             --admin-name) ADMIN_NAME="$2"; shift 2 ;;
             --admin-email) ADMIN_EMAIL="$2"; shift 2 ;;
+            --fax-email-domain) FAX_EMAIL_DOMAIN="${2,,}"; shift 2 ;;
             --admin-password-file) ADMIN_PASSWORD_FILE="$(readlink -f "$2")"; shift 2 ;;
-            -h | --help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+            -h | --help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
             *) die "Unknown option: $1 (see --help)" ;;
         esac
     done
@@ -335,6 +425,13 @@ main() {
     setup_app
     step "Configuring Nginx"
     configure_nginx
+    # A re-run without --fax-email-domain keeps the domain set last time.
+    [[ -n "$FAX_EMAIL_DOMAIN" ]] || FAX_EMAIL_DOMAIN="$(env_value FAX_EMAIL_DOMAIN)"
+    if [[ -n "$FAX_EMAIL_DOMAIN" ]]; then
+        [[ "$FAX_EMAIL_DOMAIN" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$ ]] || die "Invalid --fax-email-domain: $FAX_EMAIL_DOMAIN"
+        step "Setting up email-to-fax for $FAX_EMAIL_DOMAIN (Postfix and OpenDKIM)"
+        configure_email_to_fax "$FAX_EMAIL_DOMAIN"
+    fi
     step "Installing FreeSWITCH (built from source; this takes a few minutes)"
     install_freeswitch
     step "Starting FreeSWITCH, the queue worker, scheduler, firewall and fail2ban"
@@ -354,7 +451,8 @@ fax2email is installed.
   Update:   sudo fax2email-update
 
 Next steps:
-  1. Log in and set up the outgoing mail server under Mail server.
+  1. Log in and set up the outgoing mail server under Mail server.${FAX_EMAIL_DOMAIN:+
+  - Email-to-fax: point the MX record for $FAX_EMAIL_DOMAIN at this server (port 25 is open).}
   2. While the GitHub repository is private, add UPDATE_GITHUB_TOKEN to .env
      so 'fax2email-update' can download new releases.
 EOF

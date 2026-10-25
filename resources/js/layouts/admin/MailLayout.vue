@@ -6,6 +6,7 @@ import { computed } from 'vue';
 const tabs = [
     { title: 'Settings', href: '/admin/mail' },
     { title: 'Mail log', href: '/admin/mail/log' },
+    { title: 'Email to fax', href: '/admin/mail/email-to-fax' },
 ];
 
 const page = usePage();

@@ -13,7 +13,9 @@
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
-        "tightenco/ziggy": "^2.4"
+        "mlocati/spf-lib": "^3.3",
+        "tightenco/ziggy": "^2.4",
+        "zbateson/mail-mime-parser": "^3.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

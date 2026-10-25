@@ -1,0 +1,9 @@
+[Unit]
+Description=Fax incoming emails as soon as Postfix delivers them
+
+[Path]
+DirectoryNotEmpty=/var/spool/fax2email/Maildir/new
+Unit=fax2email-email-in.service
+
+[Install]
+WantedBy=multi-user.target

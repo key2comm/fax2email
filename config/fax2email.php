@@ -34,4 +34,23 @@ return [
         'external_ip' => env('FREESWITCH_EXTERNAL_IP'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Email to fax
+    |--------------------------------------------------------------------------
+    |
+    | domain: faxes are sent by emailing PDFs to <number>@<domain>. Blank turns
+    |   email-to-fax off. The installer sets up Postfix for this domain.
+    | authserv_id: a secret name OpenDKIM puts in its Authentication-Results
+    |   header, so a forged header from a sender can never be mistaken for ours.
+    | spool: where Postfix drops incoming messages (a Maildir).
+    |
+    */
+
+    'mail' => [
+        'domain' => strtolower((string) env('FAX_EMAIL_DOMAIN', '')),
+        'authserv_id' => env('FAX_EMAIL_AUTHSERV_ID'),
+        'spool' => env('FAX_EMAIL_SPOOL', '/var/spool/fax2email/Maildir'),
+    ],
+
 ];

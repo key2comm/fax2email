@@ -32,6 +32,7 @@ class SendFaxController extends Controller
             'numbers' => FaxNumber::where('account_id', $account)->where('enabled', true)->orderBy('number')->get()
                 ->map(fn (FaxNumber $n) => ['id' => $n->id, 'label' => $n->formatted().($n->label ? " ({$n->label})" : '')]),
             'contactId' => $request->integer('contact') ?: null,
+            'emailDomain' => config('fax2email.mail.domain') ?: null,
             'maxFiles' => self::MAX_FILES,
             'maxFileMb' => intdiv(self::MAX_FILE_KB, 1024),
         ]);

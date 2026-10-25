@@ -17,6 +17,7 @@ const props = defineProps<{
     contacts: Contact[];
     numbers: { id: number; label: string }[];
     contactId: number | null;
+    emailDomain: string | null;
     maxFiles: number;
     maxFileMb: number;
 }>();
@@ -203,6 +204,12 @@ const submit = () => {
                         <input ref="fileInput" type="file" accept="application/pdf,.pdf" multiple class="form-control" @change="addFiles" />
                         <div v-if="fileError" class="invalid-feedback d-block">{{ fileError }}</div>
                         <div v-for="message in fileErrors" :key="message" class="invalid-feedback d-block">{{ message }}</div>
+                        <div v-if="emailDomain" class="alert alert-info mt-3 mb-0">
+                            You can also fax by email: send the PDFs from your login email address to the fax number followed by
+                            <strong>@{{ emailDomain }}</strong
+                            >, e.g. <span class="font-monospace">15551234567@{{ emailDomain }}</span
+                            >.
+                        </div>
                     </div>
                     <div class="card-footer">
                         <div class="btn-list justify-content-end">

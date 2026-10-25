@@ -65,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('admin/mail', [MailSettingsController::class, 'update'])->name('admin.mail.update');
     Route::post('admin/mail/test', [MailSettingsController::class, 'test'])->name('admin.mail.test');
     Route::get('admin/mail/log', [MailLogController::class, 'index'])->name('admin.mail.log');
+    Route::get('admin/mail/email-to-fax', [MailLogController::class, 'emailToFax'])->name('admin.mail.email-to-fax');
 
     Route::get('admin/firewall', [FirewallController::class, 'blocked'])->name('admin.firewall.blocked');
     Route::get('admin/firewall/whitelist', [FirewallController::class, 'whitelist'])->name('admin.firewall.whitelist');

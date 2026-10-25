@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\FaxEmail;
 use App\Models\MailLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -12,6 +13,22 @@ use Inertia\Response;
 
 class MailLogController extends Controller
 {
+    public function emailToFax(): Response
+    {
+        Gate::authorize('manage-settings');
+
+        $emails = FaxEmail::latest('id')->paginate(50)->through(fn (FaxEmail $email) => [
+            ...$email->only('id', 'from_address', 'recipient', 'subject', 'client_ip', 'spf', 'dkim_domain', 'status', 'reason', 'fax_id'),
+            'created_at' => $email->created_at->toIso8601String(),
+        ]);
+
+        return Inertia::render('admin/EmailToFax', [
+            'emails' => $emails,
+            'domain' => config('fax2email.mail.domain') ?: null,
+            'keepDays' => FaxEmail::KEEP_DAYS,
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         Gate::authorize('manage-settings');
