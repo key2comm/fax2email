@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\Admin\FirewallController;
 use App\Http\Controllers\Admin\MailLogController;
 use App\Http\Controllers\Admin\MailSettingsController;
 use App\Http\Controllers\InvitationController;
@@ -28,6 +29,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::put('admin/mail', [MailSettingsController::class, 'update'])->name('admin.mail.update');
     Route::post('admin/mail/test', [MailSettingsController::class, 'test'])->name('admin.mail.test');
     Route::get('admin/mail/log', [MailLogController::class, 'index'])->name('admin.mail.log');
+
+    Route::get('admin/firewall', [FirewallController::class, 'blocked'])->name('admin.firewall.blocked');
+    Route::get('admin/firewall/whitelist', [FirewallController::class, 'whitelist'])->name('admin.firewall.whitelist');
+    Route::get('admin/firewall/settings', [FirewallController::class, 'settings'])->name('admin.firewall.settings');
+    Route::get('admin/firewall/activity', [FirewallController::class, 'activity'])->name('admin.firewall.activity');
+    Route::post('admin/firewall/rules', [FirewallController::class, 'store'])->name('admin.firewall.rules.store');
+    Route::delete('admin/firewall/rules/{rule}', [FirewallController::class, 'destroy'])->name('admin.firewall.rules.destroy');
+    Route::put('admin/firewall/settings', [FirewallController::class, 'updateSettings'])->name('admin.firewall.settings.update');
 });
 
 require __DIR__.'/settings.php';

@@ -1,7 +1,9 @@
 <?php
 
+use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
+use Monolog\Handler\SyslogHandler;
 use Monolog\Handler\SyslogUdpHandler;
 use Monolog\Processor\PsrLogMessageProcessor;
 
@@ -110,6 +112,20 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'facility' => env('LOG_SYSLOG_FACILITY', LOG_USER),
             'replace_placeholders' => true,
+        ],
+
+        // Failed portal logins, sent to the system journal for fail2ban's f2e_portal jail.
+        'auth_failures' => [
+            'driver' => 'monolog',
+            'handler' => SyslogHandler::class,
+            'handler_with' => [
+                'ident' => 'fax2email-auth',
+                'facility' => LOG_AUTH,
+            ],
+            'formatter' => LineFormatter::class,
+            'formatter_with' => [
+                'format' => '%message%',
+            ],
         ],
 
         'errorlog' => [

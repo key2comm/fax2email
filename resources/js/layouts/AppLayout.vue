@@ -4,7 +4,18 @@ import { useInitials } from '@/composables/useInitials';
 import { useTheme } from '@/composables/useTheme';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { IconBuilding, IconLayoutDashboard, IconLock, IconLogout, IconMail, IconMoon, IconSun, IconUser, IconUsers } from '@tabler/icons-vue';
+import {
+    IconBuilding,
+    IconLayoutDashboard,
+    IconLock,
+    IconLogout,
+    IconMail,
+    IconMoon,
+    IconShield,
+    IconSun,
+    IconUser,
+    IconUsers,
+} from '@tabler/icons-vue';
 import { computed } from 'vue';
 
 defineProps<{
@@ -28,7 +39,12 @@ const menu = computed<NavItem[]>(() => [
     { title: 'Dashboard', href: '/dashboard', icon: IconLayoutDashboard },
     ...(page.props.auth.can.manageAccounts ? [{ title: 'Accounts', href: '/accounts', icon: IconBuilding }] : []),
     ...(page.props.auth.can.manageUsers ? [{ title: 'Users', href: '/users', icon: IconUsers }] : []),
-    ...(page.props.auth.can.manageSettings ? [{ title: 'Mail server', href: '/admin/mail', icon: IconMail }] : []),
+    ...(page.props.auth.can.manageSettings
+        ? [
+              { title: 'Mail server', href: '/admin/mail', icon: IconMail },
+              { title: 'Firewall', href: '/admin/firewall', icon: IconShield },
+          ]
+        : []),
 ]);
 
 const currentPath = computed(() => page.url.split('?')[0]);

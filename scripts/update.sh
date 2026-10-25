@@ -14,9 +14,16 @@
 #
 set -Eeuo pipefail
 
-# This script is usually run through the /usr/local/bin/fax2email-update symlink.
+# Installed (root-owned) as /usr/local/sbin/fax2email-update; its helpers live in
+# /usr/local/lib/fax2email, outside the www-data-writable app directory.
+LIB=/usr/local/lib/fax2email
+[[ -f "$LIB/lib.sh" ]] || LIB="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 # shellcheck source=lib.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+source "$LIB/lib.sh"
+
+# Root-owned files outside the app directory that an update replaces.
+SYSTEM_PATHS=(usr/local/lib/fax2email usr/local/sbin/fax2email-update usr/local/sbin/fax2email-firewall-apply
+    etc/fail2ban/action.d/fax2email.conf etc/fail2ban/filter.d/fax2email-portal.conf)
 
 KEEP_BACKUPS=5
 DEFAULT_REPOSITORY=key2comm/fax2email
@@ -51,9 +58,8 @@ finish_deploy() {
     local fpm; fpm="$(php_fpm_service)"
     [[ -n "$fpm" ]] && systemctl reload "$fpm"
     artisan queue:restart
-    # A release may change the service definitions, so reinstall them each time.
-    install_units
     systemctl restart fax2email-queue.service || true
+    systemctl start fax2email-firewall.service || true
     artisan up
 }
 
@@ -65,6 +71,8 @@ rollback() {
     mkdir -p "$restore"
     tar -xzf "$BACKUP_PATH/files.tar.gz" -C "$restore"
     sync_into_app "$restore/fax2email"
+    tar -xzf "$BACKUP_PATH/system.tar.gz" -C /
+    systemctl daemon-reload
     if [[ "$MIGRATING" == 1 ]]; then
         db_env
         pg_restore --clean --if-exists --no-owner -d "$PGDATABASE" "$BACKUP_PATH/database.dump"
@@ -143,12 +151,18 @@ main() {
     artisan down --retry=60
     tar -C "$(dirname "$APP_DIR")" -czf "$BACKUP_PATH/files.tar.gz" \
         --exclude=fax2email/storage "$(basename "$APP_DIR")"
+    local existing=() path
+    for path in "${SYSTEM_PATHS[@]}" $(cd / && compgen -G 'etc/systemd/system/fax2email-*'); do
+        [[ -e "/$path" ]] && existing+=("$path")
+    done
+    tar -C / -czf "$BACKUP_PATH/system.tar.gz" "${existing[@]}"
     db_env
     pg_dump -Fc -f "$BACKUP_PATH/database.dump"
     trap rollback ERR
 
     step "Installing v$target"
     sync_into_app "$release_dir"
+    install_system_files "$release_dir"
     fix_permissions
 
     step "Running database migrations"

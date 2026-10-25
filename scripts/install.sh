@@ -49,11 +49,15 @@ install_packages() {
         export DEBIAN_FRONTEND=noninteractive
         apt-get update -q
         apt-get install -y -q nginx postgresql postgresql-client ca-certificates curl rsync tar \
-            php-fpm php-cli php-pgsql php-mbstring php-xml php-intl php-zip php-bcmath php-gd php-curl
+            php-fpm php-cli php-pgsql php-mbstring php-xml php-intl php-zip php-bcmath php-gd php-curl \
+            nftables fail2ban python3-systemd
     else
+        # fail2ban comes from EPEL. Only the server, journal and SELinux parts are
+        # installed; the firewalld and sendmail add-ons are not needed.
+        dnf install -y -q epel-release
         dnf install -y -q nginx postgresql-server postgresql curl rsync tar policycoreutils-python-utils \
             php-fpm php-cli php-pgsql php-mbstring php-xml php-intl php-pecl-zip php-bcmath php-gd \
-            php-opcache php-process
+            php-opcache php-process nftables fail2ban-server fail2ban-systemd fail2ban-selinux
     fi
 }
 
@@ -165,9 +169,12 @@ configure_nginx() {
 }
 
 configure_services() {
-    install_units
+    install_system_files "$SRC_DIR"
     systemctl enable --now fax2email-queue.service fax2email-scheduler.timer
-    ln -sf "$APP_DIR/scripts/update.sh" /usr/local/bin/fax2email-update
+    systemctl enable fail2ban fax2email-firewall.service
+    systemctl enable --now fax2email-firewall.path fax2email-firewall.timer
+    # Creates the nftables table, writes the fail2ban jails and starts fail2ban.
+    systemctl start fax2email-firewall.service
 }
 
 configure_firewall() {
@@ -246,7 +253,7 @@ main() {
     setup_app
     step "Configuring Nginx"
     configure_nginx
-    step "Starting the queue worker and scheduler"
+    step "Starting the queue worker, scheduler, firewall and fail2ban"
     configure_services
     step "Opening the firewall for HTTP and HTTPS"
     configure_firewall

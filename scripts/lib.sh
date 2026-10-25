@@ -44,8 +44,28 @@ fix_permissions() {
     if command -v restorecon >/dev/null; then restorecon -R "$APP_DIR"; fi
 }
 
-# Copy the app's systemd units into place and reload systemd.
-install_units() {
-    install -m 644 "$APP_DIR"/deploy/systemd/fax2email-* /etc/systemd/system/
+SYSTEM_LIB=/usr/local/lib/fax2email
+
+# Install the scripts and config that run as root. They are copied from a
+# root-owned release tree ($1), never from $APP_DIR, which www-data can write:
+# otherwise a compromised website could change code that later runs as root.
+install_system_files() {
+    local src="$1"
+    install -d -m 755 "$SYSTEM_LIB"
+    install -m 644 "$src/scripts/lib.sh" "$src/scripts/set-env.php" "$src/deploy/nftables/fax2email.nft" "$SYSTEM_LIB/"
+    install -m 755 "$src/scripts/update.sh" /usr/local/sbin/fax2email-update
+    install -m 755 "$src/scripts/firewall-apply.sh" /usr/local/sbin/fax2email-firewall-apply
+    # Rocky's sudo does not search /usr/local, so make the update command findable there too.
+    [[ -d /usr/sbin && ! -e /usr/sbin/fax2email-update ]] && ln -s /usr/local/sbin/fax2email-update /usr/sbin/fax2email-update
+    # Older installs linked this to a script inside $APP_DIR.
+    rm -f /usr/local/bin/fax2email-update
+    if [[ -d /etc/fail2ban ]]; then
+        install -m 644 "$src/deploy/fail2ban/action.d/fax2email.conf" /etc/fail2ban/action.d/
+        install -m 644 "$src/deploy/fail2ban/filter.d/fax2email-portal.conf" /etc/fail2ban/filter.d/
+    fi
+    if command -v restorecon >/dev/null; then
+        restorecon -R "$SYSTEM_LIB" /usr/local/sbin/fax2email-* /etc/fail2ban 2>/dev/null || true
+    fi
+    install -m 644 "$src"/deploy/systemd/fax2email-* /etc/systemd/system/
     systemctl daemon-reload
 }

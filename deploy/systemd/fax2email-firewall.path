@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply fax2email firewall rules as soon as they change in the portal
+
+[Path]
+PathChanged=/var/www/html/fax2email/storage/app/firewall/changed
+Unit=fax2email-firewall.service
+
+[Install]
+WantedBy=multi-user.target

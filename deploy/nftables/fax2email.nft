@@ -1,0 +1,44 @@
+#!/usr/sbin/nft -f
+#
+# fax2email's own nftables table. It runs before the distro firewall
+# (firewalld on Rocky, nftables on Debian) and only ever drops traffic from
+# blocked addresses; everything else carries on to the distro firewall.
+#
+# Safe to load repeatedly: sets keep their contents and the chain is rebuilt.
+# Installed to /usr/local/lib/fax2email/fax2email.nft.
+
+add table inet fax2email
+
+# Whitelist: never dropped by this table.
+add set inet fax2email allow_inet4 { type ipv4_addr; flags interval; auto-merge; }
+add set inet fax2email allow_inet6 { type ipv6_addr; flags interval; auto-merge; }
+
+# Manual blocks from the portal, filled by fax2email-firewall-apply.
+add set inet fax2email block_inet4 { type ipv4_addr; flags interval, timeout; }
+add set inet fax2email block_inet6 { type ipv6_addr; flags interval, timeout; }
+
+# One pair of sets per fail2ban jail, filled by the fax2email fail2ban action.
+add set inet fax2email f2e_sip_inet4 { type ipv4_addr; flags timeout; }
+add set inet fax2email f2e_sip_inet6 { type ipv6_addr; flags timeout; }
+add set inet fax2email f2e_portal_inet4 { type ipv4_addr; flags timeout; }
+add set inet fax2email f2e_portal_inet6 { type ipv6_addr; flags timeout; }
+add set inet fax2email f2e_ssh_inet4 { type ipv4_addr; flags timeout; }
+add set inet fax2email f2e_ssh_inet6 { type ipv6_addr; flags timeout; }
+add set inet fax2email f2e_recidive_inet4 { type ipv4_addr; flags timeout; }
+add set inet fax2email f2e_recidive_inet6 { type ipv6_addr; flags timeout; }
+
+add chain inet fax2email input { type filter hook input priority filter - 10; policy accept; }
+flush chain inet fax2email input
+add rule inet fax2email input iifname "lo" accept
+add rule inet fax2email input ip saddr @allow_inet4 accept
+add rule inet fax2email input ip6 saddr @allow_inet6 accept
+add rule inet fax2email input ip saddr @block_inet4 drop
+add rule inet fax2email input ip6 saddr @block_inet6 drop
+add rule inet fax2email input ip saddr @f2e_sip_inet4 drop
+add rule inet fax2email input ip6 saddr @f2e_sip_inet6 drop
+add rule inet fax2email input ip saddr @f2e_portal_inet4 drop
+add rule inet fax2email input ip6 saddr @f2e_portal_inet6 drop
+add rule inet fax2email input ip saddr @f2e_ssh_inet4 drop
+add rule inet fax2email input ip6 saddr @f2e_ssh_inet6 drop
+add rule inet fax2email input ip saddr @f2e_recidive_inet4 drop
+add rule inet fax2email input ip6 saddr @f2e_recidive_inet6 drop

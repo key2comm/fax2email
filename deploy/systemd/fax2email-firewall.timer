@@ -1,0 +1,10 @@
+[Unit]
+Description=Re-apply fax2email firewall rules and sync fail2ban bans to the portal every minute
+
+[Timer]
+OnBootSec=20s
+OnUnitActiveSec=1min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

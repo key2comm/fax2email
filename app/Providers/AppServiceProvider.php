@@ -6,10 +6,12 @@ use App\Enums\Role;
 use App\Models\MailLog;
 use App\Models\User;
 use App\Support\MailSettings;
+use Illuminate\Auth\Events\Failed;
 use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Mail\Events\MessageSent;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,5 +35,13 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(MessageSending::class, fn (MessageSending $event) => MailLog::recordSending($event->message));
         Event::listen(MessageSent::class, fn (MessageSent $event) => MailLog::recordSent($event->sent->getSymfonySentMessage()));
+
+        // fail2ban's f2e_portal filter matches "Failed portal login from <IP> for ".
+        // The IP comes first and the (attacker-controlled) email is cleaned, so a
+        // crafted email cannot make fail2ban ban someone else's IP.
+        Event::listen(Failed::class, function (Failed $event) {
+            $email = mb_substr(preg_replace('/[^\x21-\x7E]/', '?', (string) ($event->credentials['email'] ?? '')), 0, 100);
+            Log::channel('auth_failures')->warning('Failed portal login from '.request()->ip()." for {$email}");
+        });
     }
 }

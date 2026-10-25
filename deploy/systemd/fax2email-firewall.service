@@ -1,0 +1,10 @@
+[Unit]
+Description=Apply fax2email firewall rules (nftables and fail2ban)
+After=network-online.target postgresql.service fail2ban.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/fax2email-firewall-apply
+
+[Install]
+WantedBy=multi-user.target
