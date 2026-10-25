@@ -19,6 +19,28 @@ out as faxes. Built on Laravel, Vue (Inertia), PostgreSQL, Nginx and FreeSWITCH.
 Every account always keeps at least one owner. Nobody can change or delete their own access.
 Sign-up is invitation-only.
 
+## Firewall
+
+Admins manage the firewall under **Firewall** in the portal:
+
+- **Blocked:** block an IP or range, permanently or for a set time. A block drops *all*
+  traffic from that address (SIP, web and SSH). Bans made by fail2ban appear here too and
+  can be lifted.
+- **Whitelist:** addresses that are never blocked or banned. Add your office and your SIP
+  carriers so they cannot be locked out.
+- **Settings:** fail2ban watches SIP (FreeSWITCH), portal logins and SSH. By default an
+  address is banned for 1 day after 5 failures within 10 minutes, and an address banned
+  3 times within 7 days is banned for 30 days.
+- **Activity:** history of every ban, block and change, kept for 180 days.
+
+The portal can't block your own address, the server's loopback, a whitelisted range,
+or anything larger than a /8.
+
+The web app never touches the firewall itself. It stores the rules, and a root-owned
+service (`fax2email-firewall-apply`, run by systemd) validates them and applies them to
+fax2email's own nftables table and to fail2ban, within a few seconds. Every minute it also
+copies fail2ban's current bans back into the portal.
+
 ## Where things live
 
 Everything belonging to the application is under `/var/www/html`:
@@ -29,6 +51,7 @@ Everything belonging to the application is under `/var/www/html`:
 | `/var/www/html/fax2email/.env` | Settings and secrets. Never served to the web. |
 | `/var/www/html/fax2email/storage` | Faxes, logs and uploaded files. |
 | `/var/www/html/fax2email-backups` | Automatic backups taken before each update. |
+| `/usr/local/sbin/fax2email-*` | The update and firewall commands, which run as root. They're kept outside the web folder so the website can't change them. |
 
 Files are owned by `www-data:www-data` on both Debian and Rocky Linux.
 
