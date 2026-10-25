@@ -82,7 +82,13 @@ const sendTest = () => {
                     </div>
                     <div class="grid gap-2">
                         <Label for="port">Port</Label>
-                        <Input id="port" type="number" v-model="form.port" required min="1" max="65535" />
+                        <Input id="port" type="number" v-model="form.port" required min="1" max="65535" list="smtp-ports" />
+                        <datalist id="smtp-ports">
+                            <option value="587">STARTTLS</option>
+                            <option value="465">SSL/TLS</option>
+                            <option value="2525">Alternate (when 587 is blocked)</option>
+                            <option value="25">Plain SMTP</option>
+                        </datalist>
                         <InputError :message="form.errors.port" />
                     </div>
                     <div class="grid gap-2">
@@ -95,6 +101,9 @@ const sendTest = () => {
                         <InputError :message="form.errors.encryption" />
                     </div>
                 </div>
+                <p class="-mt-4 text-sm text-muted-foreground">
+                    Common ports: 587 (STARTTLS), 465 (SSL/TLS), 2525 (alternate STARTTLS port many providers offer when 587 is blocked), 25 (plain).
+                </p>
 
                 <div class="grid gap-4 sm:grid-cols-2">
                     <div class="grid gap-2">
