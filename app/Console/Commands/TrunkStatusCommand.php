@@ -51,7 +51,7 @@ class TrunkStatusCommand extends Command
                 $trunk->registers() => match ((string) $gateway->state) {
                     'REGED' => ['registered', null],
                     'TRYING', 'REGISTER', 'UNREGED' => ['trying', 'Registering…'],
-                    'FAIL_WAIT', 'FAILED', 'NOREG' => ['failed', trim(((string) $gateway->status).' '.((string) $gateway->{'last-error'} ?? ''))],
+                    'FAIL_WAIT', 'FAILED', 'NOREG' => ['failed', 'The provider did not accept the registration. Check the username, password, host, port and protocol.'],
                     default => ['trying', (string) $gateway->state],
                 },
                 default => ((string) $gateway->status) === 'UP' ? ['reachable', null] : ['unreachable', 'No reply to OPTIONS pings'],
