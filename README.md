@@ -1,0 +1,74 @@
+# Multitenant Fax to 2 Email for Businesses
+
+A self-hosted, multi-tenant fax ↔ email service for Debian 13+ and Rocky Linux 10+.
+Faxes received on a business's numbers are emailed to them, and emails can be sent
+out as faxes. Built on Laravel, Vue (Inertia), PostgreSQL, Nginx and FreeSWITCH.
+
+> **Status:** early development. The installer and fax handling are not ready yet.
+
+## Roles
+
+| Role | Can do |
+|---|---|
+| **Admin** | Everything, including inviting and removing Admins and Provisioners. |
+| **Provisioner** | Create and manage accounts; invite, promote and remove Account Owners and Account Users in any account. Cannot invite, change or remove Admins or Provisioners, and cannot delete accounts. |
+| **Account Owner** | Invite users to their own account and promote them to Account Owner. Cannot remove or demote other owners. An account can have several owners. |
+| **Account User** | Uses the portal for their own account. |
+
+Every account always keeps at least one owner. Nobody can change or delete their own access.
+Sign-up is invitation-only.
+
+## Where things live
+
+Everything belonging to the application is under `/var/www/html`:
+
+| Path | Contents |
+|---|---|
+| `/var/www/html/fax2email` | The application. Nginx serves only its `public/` folder. |
+| `/var/www/html/fax2email/.env` | Settings and secrets. Never served to the web. |
+| `/var/www/html/fax2email/storage` | Faxes, logs and uploaded files. |
+| `/var/www/html/fax2email-backups` | Automatic backups taken before each update. |
+
+Files are owned by `www-data:www-data` on both Debian and Rocky Linux.
+
+## Updating a server
+
+```bash
+sudo fax2email-update --check   # is there a new version?
+sudo fax2email-update           # install the latest release
+sudo fax2email-update 0.3.0     # install (or roll back to) a specific release
+```
+
+The updater puts the site in maintenance mode, backs up the code and database,
+installs the release, runs database migrations, and brings the site back. If any
+step fails it restores the backup automatically. The last 5 backups are kept.
+
+While the GitHub repository is private, set `UPDATE_GITHUB_TOKEN` in `.env` to a
+[fine-grained token](https://github.com/settings/personal-access-tokens) with
+read-only access to this repository's **Contents**.
+
+## Releasing a new version (maintainers)
+
+```bash
+scripts/release.sh 0.2.0
+```
+
+This bumps `VERSION`, commits, tags `v0.2.0` and pushes. GitHub Actions then runs the
+tests, builds an archive that includes `vendor/` and the compiled frontend (so servers
+never need Composer or Node), and publishes it as a GitHub release.
+
+Versions follow [semantic versioning](https://semver.org): bump the patch number for
+fixes, the minor number for new features, and the major number for breaking changes.
+
+## Development
+
+```bash
+composer install
+npm install
+cp .env.example .env && php artisan key:generate
+php artisan migrate --seed   # demo users, all with password "password"
+npm run dev
+php artisan test
+```
+
+Create a real admin with `php artisan fax2email:create-admin`.
