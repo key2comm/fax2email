@@ -4,8 +4,8 @@ A self-hosted, multi-tenant fax ↔ email service for Debian 13+ and Rocky Linux
 Faxes received on a business's numbers are emailed to them, and emails can be sent
 out as faxes. Built on Laravel, Vue (Inertia), PostgreSQL, Nginx and FreeSWITCH.
 
-> **Status:** early development. Receiving faxes works end to end (SIP trunk → fax number →
-> PDF by email). Sending faxes is next.
+> **Status:** early development. Receiving and sending faxes work end to end: from the portal,
+> by email, and to email.
 
 ## Roles
 
@@ -55,6 +55,26 @@ the PDF and, as an owner, email it again. Faxes are kept for 90 days.
 - The TIFF-to-PDF conversion is built in: the fax's compressed image data is copied into the PDF
   unchanged, so there is no quality loss and no extra software to install.
 - If the mail server is down, delivery is retried for about an hour; the Faxes page shows any error.
+
+## Sending faxes
+
+**From the portal:** under **Send fax**, pick a contact from the company address book or type
+a number, choose which of your numbers to send from, and attach up to 10 PDFs (20 MB each).
+They are faxed as one fax, in the order shown. Everyone in a company shares one **Address book**.
+
+**By email:** email PDFs to `<fax number>@<fax domain>`, e.g. `15551234567@fax.example.com`,
+from the address you log in with. Several PDFs become one fax, in attachment order. Turn this on
+with `--fax-email-domain fax.example.com` when running the installer, then point that domain's
+MX record at the server (port 25).
+
+Because email From addresses are easy to forge, an email is only faxed when the sender passes
+SPF, or a DKIM signature checked by OpenDKIM on this server, for the same domain as the From
+address. Anything else is dropped without a reply. Admins see every fax email, accepted or
+rejected, under **Mail server → Email to fax**.
+
+Either way, PDFs are converted with Ghostscript, sent through the fax number's trunk (set per
+number, or the first enabled trunk), retried up to 3 times if busy or unanswered, and the
+sender gets an email with the result and a copy of what was sent.
 
 ## Firewall
 

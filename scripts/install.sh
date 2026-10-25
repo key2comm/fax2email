@@ -252,6 +252,17 @@ AlwaysAddARHeader   yes
 SoftwareHeader      no
 MinimumKeyBits      1024
 EOF
+    # Debian's OpenDKIM resolves DNS itself (libunbound) from the root servers. Send its
+    # lookups to this server's nameservers instead, so DKIM sees the same DNS as SPF and
+    # works where outbound DNS must go through a local resolver.
+    local servers
+    servers="$(awk '/^nameserver/ {print "    forward-addr: " $2}' /etc/resolv.conf)"
+    if ldd /usr/sbin/opendkim 2>/dev/null | grep -q libunbound && [[ -n "$servers" ]]; then
+        printf 'server:\n    module-config: "iterator"\nforward-zone:\n    name: "."\n%s\n' "$servers" > /etc/fax2email/opendkim-unbound.conf
+        echo "ResolverConfiguration /etc/fax2email/opendkim-unbound.conf" >> /etc/fax2email/opendkim.conf
+    fi
+    runuser -u opendkim -- /usr/sbin/opendkim -n -x /etc/fax2email/opendkim.conf
+
     # Only fax2email's own OpenDKIM instance runs (the distro's would want the same port).
     systemctl disable --now opendkim 2>/dev/null || true
 
