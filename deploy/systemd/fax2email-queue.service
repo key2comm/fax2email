@@ -1,0 +1,16 @@
+[Unit]
+Description=fax2email queue worker (sends emails and processes faxes in the background)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/fax2email
+# --max-time restarts the worker hourly so it picks up updated code and frees memory.
+ExecStart=/usr/bin/php /var/www/html/fax2email/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

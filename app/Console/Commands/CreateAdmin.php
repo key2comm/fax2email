@@ -15,12 +15,19 @@ class CreateAdmin extends Command
 {
     protected $signature = 'fax2email:create-admin
                             {--name= : The admin\'s full name}
-                            {--email= : The admin\'s email address}';
+                            {--email= : The admin\'s email address}
+                            {--skip-if-exists : Do nothing if an Admin already exists (lets the installer be re-run)}';
 
     protected $description = 'Create an Admin user (used by the installer to set up the first login)';
 
     public function handle(): int
     {
+        if ($this->option('skip-if-exists') && User::where('role', Role::Admin)->exists()) {
+            $this->components->info('An Admin already exists. Skipping.');
+
+            return self::SUCCESS;
+        }
+
         $name = $this->option('name') ?: text('Name', required: true);
         $email = $this->option('email') ?: text('Email address', required: true);
         $password = password('Password', required: true, hint: 'At least 8 characters.');

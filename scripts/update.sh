@@ -14,20 +14,12 @@
 #
 set -Eeuo pipefail
 
-APP_DIR=/var/www/html/fax2email
-BACKUP_DIR=/var/www/html/fax2email-backups
+# This script is usually run through the /usr/local/bin/fax2email-update symlink.
+# shellcheck source=lib.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib.sh"
+
 KEEP_BACKUPS=5
-WEB_USER=www-data
 DEFAULT_REPOSITORY=key2comm/fax2email
-
-die() { echo "Error: $*" >&2; exit 1; }
-step() { echo "==> $*"; }
-
-env_value() {
-    grep -E "^$1=" "$APP_DIR/.env" | tail -n1 | cut -d= -f2- | sed -E 's/^"(.*)"$/\1/' || true
-}
-
-artisan() { runuser -u "$WEB_USER" -- php "$APP_DIR/artisan" "$@"; }
 
 github() {
     local accept="$1"; shift
@@ -46,33 +38,11 @@ parse_release() {
     '
 }
 
-php_fpm_service() {
-    systemctl list-unit-files --type=service --no-legend 'php*-fpm.service' | awk '{print $1}' | head -n1
-}
-
 db_env() {
     export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
     PGHOST="$(env_value DB_HOST)"; PGPORT="$(env_value DB_PORT)"
     PGUSER="$(env_value DB_USERNAME)"; PGPASSWORD="$(env_value DB_PASSWORD)"
     PGDATABASE="$(env_value DB_DATABASE)"
-}
-
-# Sync a release tree into the app directory, keeping .env and user data.
-sync_into_app() {
-    rsync -a --delete \
-        --exclude=/.env --exclude=/storage/ --exclude=/public/storage \
-        "$1/" "$APP_DIR/"
-    # Add any storage folders a new release introduces, without touching existing data.
-    rsync -a --ignore-existing "$1/storage/" "$APP_DIR/storage/"
-}
-
-fix_permissions() {
-    chown -R "$WEB_USER:$WEB_USER" "$APP_DIR"
-    find "$APP_DIR" -type d -exec chmod 2775 {} +
-    find "$APP_DIR" -type f -exec chmod 664 {} +
-    chmod 775 "$APP_DIR/artisan" "$APP_DIR"/scripts/*.sh
-    chmod 640 "$APP_DIR/.env"
-    if command -v restorecon >/dev/null; then restorecon -R "$APP_DIR"; fi
 }
 
 finish_deploy() {
@@ -81,9 +51,9 @@ finish_deploy() {
     local fpm; fpm="$(php_fpm_service)"
     [[ -n "$fpm" ]] && systemctl reload "$fpm"
     artisan queue:restart
-    if systemctl cat fax2email-queue.service >/dev/null 2>&1; then
-        systemctl restart fax2email-queue.service || true
-    fi
+    # A release may change the service definitions, so reinstall them each time.
+    install_units
+    systemctl restart fax2email-queue.service || true
     artisan up
 }
 

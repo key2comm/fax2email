@@ -1,0 +1,10 @@
+[Unit]
+Description=fax2email scheduled tasks (e.g. pruning old mail log entries)
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/fax2email
+ExecStart=/usr/bin/php /var/www/html/fax2email/artisan schedule:run

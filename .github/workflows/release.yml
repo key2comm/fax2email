@@ -47,21 +47,7 @@ jobs:
           php artisan test
 
       - name: Build release archive
-        run: |
-          set -euo pipefail
-          name="fax2email-${GITHUB_REF_NAME}"
-          composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-progress
-          rm -f .env
-          mkdir -p "dist/$name"
-          # Ship everything a server needs to run, including vendor/ and the built
-          # frontend, so servers never need Composer or Node to install or update.
-          rsync -a \
-            --exclude='.git' --exclude='.github' --exclude='dist' --exclude='node_modules' \
-            --exclude='tests' --exclude='storage/logs/*' --exclude='storage/framework/*/*' \
-            --exclude='bootstrap/cache/*.php' --exclude='.phpunit.cache' \
-            ./ "dist/$name/"
-          tar -C dist -czf "dist/$name.tar.gz" "$name"
-          (cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+        run: scripts/build-release.sh
 
       - name: Publish GitHub release
         env:
