@@ -4,7 +4,8 @@ A self-hosted, multi-tenant fax ↔ email service for Debian 13+ and Rocky Linux
 Faxes received on a business's numbers are emailed to them, and emails can be sent
 out as faxes. Built on Laravel, Vue (Inertia), PostgreSQL, Nginx and FreeSWITCH.
 
-> **Status:** early development. The installer and fax handling are not ready yet.
+> **Status:** early development. The portal, roles, mail server settings and installer work;
+> fax handling is not built yet.
 
 ## Roles
 
@@ -30,6 +31,26 @@ Everything belonging to the application is under `/var/www/html`:
 | `/var/www/html/fax2email-backups` | Automatic backups taken before each update. |
 
 Files are owned by `www-data:www-data` on both Debian and Rocky Linux.
+
+## Installing
+
+Requires a fresh **Debian 13+** or **Rocky Linux 10+** server and a user with `sudo`.
+
+```bash
+cd /tmp
+# Download the latest release archive. While the repository is private, use the GitHub CLI:
+gh release download --repo key2comm/fax2email --pattern 'fax2email-*.tar.gz'
+tar -xzf fax2email-v*.tar.gz
+sudo ./fax2email-v*/scripts/install.sh --server-name fax.example.com
+```
+
+The installer sets up Nginx, PHP, PostgreSQL, the `www-data` user, SELinux rules (Rocky),
+the firewall, a background queue worker and scheduler (systemd), and asks for the first
+Admin's name, email and password. It is safe to run again. Run it with `--help` for options,
+including `--admin-password-file` for unattended installs.
+
+When it finishes, log in at `http://<server-name>` and set up the outgoing mail server
+under **Mail server**.
 
 ## Updating a server
 
