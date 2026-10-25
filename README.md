@@ -4,8 +4,8 @@ A self-hosted, multi-tenant fax ↔ email service for Debian 13+ and Rocky Linux
 Faxes received on a business's numbers are emailed to them, and emails can be sent
 out as faxes. Built on Laravel, Vue (Inertia), PostgreSQL, Nginx and FreeSWITCH.
 
-> **Status:** early development. The portal, roles, mail server settings and installer work;
-> fax handling is not built yet.
+> **Status:** early development. The portal, roles, mail server, firewall, SIP trunks and fax
+> reception work; routing received faxes to accounts and emailing them is next.
 
 ## Roles
 
@@ -18,6 +18,27 @@ out as faxes. Built on Laravel, Vue (Inertia), PostgreSQL, Nginx and FreeSWITCH.
 
 Every account always keeps at least one owner. Nobody can change or delete their own access.
 Sign-up is invitation-only.
+
+## SIP trunks
+
+Admins connect SIP providers under **SIP trunks**. Add as many as you need:
+
+- **IP address** trunks: the provider sends calls from known addresses; no username or password.
+- **Username and password** trunks: this server registers to the provider.
+- **Protocol:** UDP, TCP or TLS. **Port:** 5060 by default (5061 for TLS), or any port your provider uses.
+- **Additional provider addresses:** list any other IPs, ranges or hostnames the provider sends calls from.
+
+Every trunk's addresses are added to the firewall whitelist as **Provider trunk**. Only those
+addresses can reach the SIP ports (5060/5061); everyone else is dropped before reaching FreeSWITCH.
+Hostnames are looked up again every 5 minutes, so the whitelist follows a provider's IP changes.
+The page shows each trunk's live status (registered, or reachable for IP trunks).
+
+Incoming fax calls are answered with T.38 when the provider offers it, otherwise G.711, and
+saved under `storage/app/faxes/incoming`.
+
+FreeSWITCH is built from source by the installer (pinned version, checksum-verified). It reads
+its SIP and dialplan configuration from the app, so changes in the portal apply within seconds.
+Set `FREESWITCH_EXTERNAL_IP` in `.env` if the server is behind NAT.
 
 ## Firewall
 
