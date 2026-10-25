@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { LoaderCircle } from 'lucide-vue-next';
 
 interface Props {
     token: string;
@@ -32,54 +28,64 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthLayout title="Accept your invitation" :description="accountName ? `Join ${accountName} as ${role}` : `Join as ${role}`">
+    <AuthLayout title="Accept your invitation" :description="accountName ? `Join ${accountName} as ${role}.` : `Join as ${role}.`">
         <Head title="Accept invitation" />
 
-        <form @submit.prevent="submit">
-            <div class="grid gap-6">
-                <div class="grid gap-2">
-                    <Label for="email">Email</Label>
-                    <Input id="email" type="email" :model-value="email" class="mt-1 block w-full" readonly />
-                </div>
+        <form @submit.prevent="submit" novalidate>
+            <div class="mb-3">
+                <label class="form-label" for="email">Email address</label>
+                <input id="email" type="email" class="form-control" :value="email" readonly />
+            </div>
 
-                <div class="grid gap-2">
-                    <Label for="name">Name</Label>
-                    <Input id="name" v-model="form.name" class="mt-1 block w-full" required autofocus autocomplete="name" placeholder="Full name" />
-                    <InputError :message="form.errors.name" />
-                </div>
+            <div class="mb-3">
+                <label class="form-label" for="name">Your name</label>
+                <input
+                    id="name"
+                    v-model="form.name"
+                    type="text"
+                    class="form-control"
+                    :class="{ 'is-invalid': form.errors.name }"
+                    placeholder="Full name"
+                    autocomplete="name"
+                    required
+                    autofocus
+                />
+                <InputError :message="form.errors.name" />
+            </div>
 
-                <div class="grid gap-2">
-                    <Label for="password">Password</Label>
-                    <Input
-                        id="password"
-                        type="password"
-                        v-model="form.password"
-                        class="mt-1 block w-full"
-                        required
-                        autocomplete="new-password"
-                        placeholder="Password"
-                    />
-                    <InputError :message="form.errors.password" />
-                </div>
+            <div class="mb-3">
+                <label class="form-label" for="password">Password</label>
+                <input
+                    id="password"
+                    v-model="form.password"
+                    type="password"
+                    class="form-control"
+                    :class="{ 'is-invalid': form.errors.password }"
+                    autocomplete="new-password"
+                    required
+                />
+                <InputError :message="form.errors.password" />
+            </div>
 
-                <div class="grid gap-2">
-                    <Label for="password_confirmation">Confirm password</Label>
-                    <Input
-                        id="password_confirmation"
-                        type="password"
-                        v-model="form.password_confirmation"
-                        class="mt-1 block w-full"
-                        required
-                        autocomplete="new-password"
-                        placeholder="Confirm password"
-                    />
-                    <InputError :message="form.errors.password_confirmation" />
-                </div>
+            <div class="mb-3">
+                <label class="form-label" for="password_confirmation">Confirm password</label>
+                <input
+                    id="password_confirmation"
+                    v-model="form.password_confirmation"
+                    type="password"
+                    class="form-control"
+                    :class="{ 'is-invalid': form.errors.password_confirmation }"
+                    autocomplete="new-password"
+                    required
+                />
+                <InputError :message="form.errors.password_confirmation" />
+            </div>
 
-                <Button type="submit" class="mt-4 w-full" :disabled="form.processing">
-                    <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary w-100" :disabled="form.processing">
+                    <span v-if="form.processing" class="spinner-border spinner-border-sm me-2" role="status"></span>
                     Create my login
-                </Button>
+                </button>
             </div>
         </form>
     </AuthLayout>

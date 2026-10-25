@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import AuthLayout from '@/layouts/AuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { LoaderCircle } from 'lucide-vue-next';
 
 interface Props {
     token: string;
@@ -31,50 +27,50 @@ const submit = () => {
 </script>
 
 <template>
-    <AuthLayout title="Reset password" description="Please enter your new password below">
+    <AuthLayout title="Reset password" description="Choose a new password for your account.">
         <Head title="Reset password" />
 
-        <form @submit.prevent="submit">
-            <div class="grid gap-6">
-                <div class="grid gap-2">
-                    <Label for="email">Email</Label>
-                    <Input id="email" type="email" name="email" autocomplete="email" v-model="form.email" class="mt-1 block w-full" readonly />
-                    <InputError :message="form.errors.email" class="mt-2" />
-                </div>
+        <form @submit.prevent="submit" novalidate>
+            <div class="mb-3">
+                <label class="form-label" for="email">Email address</label>
+                <input id="email" v-model="form.email" type="email" class="form-control" readonly />
+                <InputError :message="form.errors.email" />
+            </div>
 
-                <div class="grid gap-2">
-                    <Label for="password">Password</Label>
-                    <Input
-                        id="password"
-                        type="password"
-                        name="password"
-                        autocomplete="new-password"
-                        v-model="form.password"
-                        class="mt-1 block w-full"
-                        autofocus
-                        placeholder="Password"
-                    />
-                    <InputError :message="form.errors.password" />
-                </div>
+            <div class="mb-3">
+                <label class="form-label" for="password">New password</label>
+                <input
+                    id="password"
+                    v-model="form.password"
+                    type="password"
+                    class="form-control"
+                    :class="{ 'is-invalid': form.errors.password }"
+                    autocomplete="new-password"
+                    required
+                    autofocus
+                />
+                <InputError :message="form.errors.password" />
+            </div>
 
-                <div class="grid gap-2">
-                    <Label for="password_confirmation"> Confirm Password </Label>
-                    <Input
-                        id="password_confirmation"
-                        type="password"
-                        name="password_confirmation"
-                        autocomplete="new-password"
-                        v-model="form.password_confirmation"
-                        class="mt-1 block w-full"
-                        placeholder="Confirm password"
-                    />
-                    <InputError :message="form.errors.password_confirmation" />
-                </div>
+            <div class="mb-3">
+                <label class="form-label" for="password_confirmation">Confirm new password</label>
+                <input
+                    id="password_confirmation"
+                    v-model="form.password_confirmation"
+                    type="password"
+                    class="form-control"
+                    :class="{ 'is-invalid': form.errors.password_confirmation }"
+                    autocomplete="new-password"
+                    required
+                />
+                <InputError :message="form.errors.password_confirmation" />
+            </div>
 
-                <Button type="submit" class="mt-4 w-full" :disabled="form.processing">
-                    <LoaderCircle v-if="form.processing" class="h-4 w-4 animate-spin" />
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary w-100" :disabled="form.processing">
+                    <span v-if="form.processing" class="spinner-border spinner-border-sm me-2" role="status"></span>
                     Reset password
-                </Button>
+                </button>
             </div>
         </form>
     </AuthLayout>

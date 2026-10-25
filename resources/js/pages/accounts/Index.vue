@@ -1,12 +1,8 @@
 <script setup lang="ts">
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { IconPlus } from '@tabler/icons-vue';
 
 interface AccountRow {
     id: number;
@@ -20,8 +16,6 @@ defineProps<{
     accounts: AccountRow[];
     canDelete: boolean;
 }>();
-
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Accounts', href: '/accounts' }];
 
 const form = useForm({ name: '' });
 
@@ -43,53 +37,82 @@ const destroy = (account: AccountRow) => {
 <template>
     <Head title="Accounts" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-6 p-4">
-            <Heading title="Accounts" description="Each account is a separate business with its own users and fax numbers." />
+    <AppLayout title="Accounts" pretitle="Each account is a separate business">
+        <div class="row row-cards">
+            <div class="col-12">
+                <form class="card" @submit.prevent="create" novalidate>
+                    <div class="card-body">
+                        <label class="form-label" for="name">New account</label>
+                        <div class="row g-2">
+                            <div class="col">
+                                <input
+                                    id="name"
+                                    v-model="form.name"
+                                    type="text"
+                                    class="form-control"
+                                    :class="{ 'is-invalid': form.errors.name }"
+                                    placeholder="Business name, e.g. Acme Dental"
+                                    required
+                                />
+                                <InputError :message="form.errors.name" />
+                            </div>
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-primary" :disabled="form.processing">
+                                    <IconPlus class="icon" />
+                                    Create account
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
 
-            <form @submit.prevent="create" class="flex max-w-xl flex-col gap-2 sm:flex-row sm:items-end">
-                <div class="grid flex-1 gap-2">
-                    <Label for="name">New account name</Label>
-                    <Input id="name" v-model="form.name" required placeholder="e.g. Acme Dental" />
-                    <InputError :message="form.errors.name" />
+            <div class="col-12">
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="table table-vcenter card-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Owners</th>
+                                    <th>Users</th>
+                                    <th>Status</th>
+                                    <th class="w-1"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="account in accounts" :key="account.id">
+                                    <td>
+                                        <Link :href="route('users.index', { account: account.id })" class="fw-medium">{{ account.name }}</Link>
+                                    </td>
+                                    <td>
+                                        <span v-if="account.owners_count === 0" class="badge bg-red-lt">None</span>
+                                        <template v-else>{{ account.owners_count }}</template>
+                                    </td>
+                                    <td class="text-secondary">{{ account.users_count }}</td>
+                                    <td>
+                                        <span v-if="account.is_active" class="badge bg-green-lt">Active</span>
+                                        <span v-else class="badge bg-secondary-lt">Disabled</span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-list flex-nowrap">
+                                            <Link :href="route('users.index', { account: account.id })" class="btn btn-sm">Users</Link>
+                                            <button type="button" class="btn btn-sm" @click="toggleActive(account)">
+                                                {{ account.is_active ? 'Disable' : 'Enable' }}
+                                            </button>
+                                            <button v-if="canDelete" type="button" class="btn btn-sm btn-outline-danger" @click="destroy(account)">
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr v-if="accounts.length === 0">
+                                    <td colspan="5" class="text-center text-secondary py-4">No accounts yet. Create the first one above.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <Button :disabled="form.processing">Create account</Button>
-            </form>
-
-            <div class="overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                <table class="w-full text-left text-sm">
-                    <thead class="border-b bg-muted/50 text-muted-foreground">
-                        <tr>
-                            <th class="px-4 py-2 font-medium">Name</th>
-                            <th class="px-4 py-2 font-medium">Owners</th>
-                            <th class="px-4 py-2 font-medium">Users</th>
-                            <th class="px-4 py-2 font-medium">Status</th>
-                            <th class="px-4 py-2"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="account in accounts" :key="account.id" class="border-b last:border-0">
-                            <td class="px-4 py-2 font-medium">
-                                <Link :href="route('users.index', { account: account.id })" class="hover:underline">{{ account.name }}</Link>
-                            </td>
-                            <td class="px-4 py-2" :class="{ 'text-red-600': account.owners_count === 0 }">{{ account.owners_count }}</td>
-                            <td class="px-4 py-2">{{ account.users_count }}</td>
-                            <td class="px-4 py-2">{{ account.is_active ? 'Active' : 'Disabled' }}</td>
-                            <td class="space-x-2 whitespace-nowrap px-4 py-2 text-right">
-                                <Button variant="outline" size="sm" as-child>
-                                    <Link :href="route('users.index', { account: account.id })">Users</Link>
-                                </Button>
-                                <Button variant="outline" size="sm" @click="toggleActive(account)">
-                                    {{ account.is_active ? 'Disable' : 'Enable' }}
-                                </Button>
-                                <Button v-if="canDelete" variant="destructive" size="sm" @click="destroy(account)">Delete</Button>
-                            </td>
-                        </tr>
-                        <tr v-if="accounts.length === 0">
-                            <td colspan="5" class="px-4 py-6 text-center text-muted-foreground">No accounts yet.</td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </div>
     </AppLayout>

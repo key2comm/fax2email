@@ -44,7 +44,8 @@ class AccountController extends Controller
 
         $account = Account::create($validated);
 
-        return to_route('users.index', ['account' => $account->id]);
+        return to_route('users.index', ['account' => $account->id])
+            ->with('status', "Account {$account->name} created. Invite its first owner below.");
     }
 
     public function update(Request $request, Account $account): RedirectResponse
@@ -56,7 +57,7 @@ class AccountController extends Controller
             'is_active' => ['required', 'boolean'],
         ]));
 
-        return back();
+        return back()->with('status', "Account {$account->name} updated.");
     }
 
     public function destroy(Account $account): RedirectResponse
@@ -65,6 +66,6 @@ class AccountController extends Controller
 
         $account->delete();
 
-        return to_route('accounts.index');
+        return to_route('accounts.index')->with('status', "Account {$account->name} deleted.");
     }
 }

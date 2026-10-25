@@ -51,7 +51,7 @@ class InvitationController extends Controller
             return back()->withErrors(['email' => 'The invitation email could not be sent. Check the mail server settings. ('.$e->getMessage().')']);
         }
 
-        return back();
+        return back()->with('status', "Invitation sent to {$invitation->email}.");
     }
 
     public function destroy(Invitation $invitation): RedirectResponse
@@ -60,6 +60,6 @@ class InvitationController extends Controller
 
         $invitation->delete();
 
-        return back();
+        return back()->with('status', "Invitation to {$invitation->email} revoked.");
     }
 }

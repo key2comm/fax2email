@@ -35,7 +35,6 @@ class MailSettingsController extends Controller
             'hasPassword' => filled($stored['password'] ?? null),
             'isConfigured' => $stored !== null,
             'testRecipient' => $request->user()->email,
-            'status' => $request->session()->get('status'),
         ]);
     }
 

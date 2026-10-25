@@ -1,14 +1,9 @@
 <script setup lang="ts">
-import Heading from '@/components/Heading.vue';
-import HeadingSmall from '@/components/HeadingSmall.vue';
 import InputError from '@/components/InputError.vue';
-import SelectInput from '@/components/SelectInput.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem, type SharedData } from '@/types';
+import { type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { IconUserPlus } from '@tabler/icons-vue';
 import { computed, ref, watch } from 'vue';
 
 interface AccountRef {
@@ -53,11 +48,6 @@ const props = defineProps<{
 const page = usePage<SharedData>();
 const isStaff = computed(() => ['admin', 'provisioner'].includes(page.props.auth.user.role));
 
-const breadcrumbs = computed<BreadcrumbItem[]>(() => [
-    { title: 'Users', href: '/users' },
-    ...(props.account ? [{ title: props.account.name, href: `/users?account=${props.account.id}` }] : []),
-]);
-
 const roleLabel = (value: string) => props.roles.find((role) => role.value === value)?.label ?? value;
 const isStaffRole = (value: string) => props.roles.find((role) => role.value === value)?.is_staff ?? false;
 
@@ -96,103 +86,137 @@ const revoke = (invitation: InvitationRow) => {
 <template>
     <Head title="Users" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-8 p-4">
-            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <Heading
-                    :title="account ? `${account.name} users` : 'All users'"
-                    description="Invite people, change their role, or remove their access."
-                />
-                <div v-if="isStaff" class="grid w-full gap-2 sm:w-64">
-                    <Label for="account-filter">Account</Label>
-                    <SelectInput id="account-filter" v-model="accountFilter">
-                        <option value="">All users</option>
-                        <option v-for="option in accounts" :key="option.id" :value="option.id">{{ option.name }}</option>
-                    </SelectInput>
-                </div>
-            </div>
+    <AppLayout :title="account ? account.name : 'All users'" pretitle="Users">
+        <template v-if="isStaff" #actions>
+            <select v-model="accountFilter" class="form-select" aria-label="Filter by account">
+                <option value="">All users</option>
+                <option v-for="option in accounts" :key="option.id" :value="option.id">{{ option.name }}</option>
+            </select>
+        </template>
 
-            <section class="max-w-3xl space-y-4">
-                <HeadingSmall title="Invite someone" description="They'll get an email with a link to set their password." />
-                <form @submit.prevent="sendInvite" class="grid gap-4 sm:grid-cols-[1fr_auto_auto_auto] sm:items-end">
-                    <div class="grid gap-2">
-                        <Label for="invite-email">Email</Label>
-                        <Input id="invite-email" type="email" v-model="invite.email" required placeholder="name@business.com" />
+        <div class="row row-cards">
+            <div class="col-12">
+                <form class="card" @submit.prevent="sendInvite" novalidate>
+                    <div class="card-header">
+                        <div>
+                            <h3 class="card-title">Invite someone</h3>
+                            <p class="card-subtitle">They'll get an email with a link to set their password.</p>
+                        </div>
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="invite-role">Role</Label>
-                        <SelectInput id="invite-role" v-model="invite.role">
-                            <option v-for="value in invitableRoles" :key="value" :value="value">{{ roleLabel(value) }}</option>
-                        </SelectInput>
-                    </div>
-                    <div v-if="isStaff && !isStaffRole(invite.role)" class="grid gap-2">
-                        <Label for="invite-account">Account</Label>
-                        <SelectInput id="invite-account" v-model="invite.account_id" required>
-                            <option :value="null" disabled>Choose…</option>
-                            <option v-for="option in accounts" :key="option.id" :value="option.id">{{ option.name }}</option>
-                        </SelectInput>
-                    </div>
-                    <Button :disabled="invite.processing">Send invite</Button>
-                </form>
-                <InputError :message="invite.errors.email || invite.errors.role || invite.errors.account_id" />
-            </section>
-
-            <div class="overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                <table class="w-full text-left text-sm">
-                    <thead class="border-b bg-muted/50 text-muted-foreground">
-                        <tr>
-                            <th class="px-4 py-2 font-medium">Name</th>
-                            <th class="px-4 py-2 font-medium">Email</th>
-                            <th v-if="isStaff && !account" class="px-4 py-2 font-medium">Account</th>
-                            <th class="px-4 py-2 font-medium">Role</th>
-                            <th class="px-4 py-2"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr v-for="user in users" :key="user.id" class="border-b last:border-0">
-                            <td class="px-4 py-2 font-medium">{{ user.name }}</td>
-                            <td class="px-4 py-2">{{ user.email }}</td>
-                            <td v-if="isStaff && !account" class="px-4 py-2 text-muted-foreground">{{ user.account?.name ?? 'Staff' }}</td>
-                            <td class="px-4 py-2">
-                                <SelectInput
-                                    v-if="user.assignable_roles.length > 1"
-                                    :model-value="user.role"
-                                    class="w-40"
-                                    @update:model-value="changeRole(user, $event as string)"
+                    <div class="card-body">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md">
+                                <label class="form-label" for="invite-email">Email address</label>
+                                <input
+                                    id="invite-email"
+                                    v-model="invite.email"
+                                    type="email"
+                                    class="form-control"
+                                    :class="{ 'is-invalid': invite.errors.email }"
+                                    placeholder="name@business.com"
+                                    required
+                                />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label" for="invite-role">Role</label>
+                                <select id="invite-role" v-model="invite.role" class="form-select">
+                                    <option v-for="value in invitableRoles" :key="value" :value="value">{{ roleLabel(value) }}</option>
+                                </select>
+                            </div>
+                            <div v-if="isStaff && !isStaffRole(invite.role)" class="col-md-3">
+                                <label class="form-label" for="invite-account">Account</label>
+                                <select
+                                    id="invite-account"
+                                    v-model="invite.account_id"
+                                    class="form-select"
+                                    :class="{ 'is-invalid': invite.errors.account_id }"
+                                    required
                                 >
-                                    <option v-for="value in user.assignable_roles" :key="value" :value="value">{{ roleLabel(value) }}</option>
-                                </SelectInput>
-                                <span v-else>{{ roleLabel(user.role) }}</span>
-                            </td>
-                            <td class="px-4 py-2 text-right">
-                                <Button v-if="user.can_delete" variant="destructive" size="sm" @click="removeUser(user)">Remove</Button>
-                            </td>
-                        </tr>
-                        <tr v-if="users.length === 0">
-                            <td colspan="5" class="px-4 py-6 text-center text-muted-foreground">No users yet.</td>
-                        </tr>
-                    </tbody>
-                </table>
+                                    <option :value="null" disabled>Choose…</option>
+                                    <option v-for="option in accounts" :key="option.id" :value="option.id">{{ option.name }}</option>
+                                </select>
+                            </div>
+                            <div class="col-md-auto">
+                                <button type="submit" class="btn btn-primary w-100" :disabled="invite.processing">
+                                    <IconUserPlus class="icon" />
+                                    Send invite
+                                </button>
+                            </div>
+                        </div>
+                        <InputError :message="invite.errors.email || invite.errors.role || invite.errors.account_id" />
+                    </div>
+                </form>
             </div>
 
-            <section v-if="invitations.length" class="space-y-4">
-                <HeadingSmall title="Pending invitations" />
-                <div class="overflow-x-auto rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                    <table class="w-full text-left text-sm">
-                        <tbody>
-                            <tr v-for="invitation in invitations" :key="invitation.id" class="border-b last:border-0">
-                                <td class="px-4 py-2">{{ invitation.email }}</td>
-                                <td class="px-4 py-2">{{ roleLabel(invitation.role) }}</td>
-                                <td v-if="isStaff" class="px-4 py-2 text-muted-foreground">{{ invitation.account?.name ?? 'Staff' }}</td>
-                                <td class="px-4 py-2 text-muted-foreground">Expires {{ new Date(invitation.expires_at).toLocaleDateString() }}</td>
-                                <td class="px-4 py-2 text-right">
-                                    <Button v-if="invitation.can_revoke" variant="outline" size="sm" @click="revoke(invitation)">Revoke</Button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div class="col-12">
+                <div class="card">
+                    <div class="table-responsive">
+                        <table class="table table-vcenter card-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th v-if="isStaff && !account">Account</th>
+                                    <th>Role</th>
+                                    <th class="w-1"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="user in users" :key="user.id">
+                                    <td class="fw-medium">{{ user.name }}</td>
+                                    <td class="text-secondary">{{ user.email }}</td>
+                                    <td v-if="isStaff && !account" class="text-secondary">{{ user.account?.name ?? 'Staff' }}</td>
+                                    <td>
+                                        <select
+                                            v-if="user.assignable_roles.length > 1"
+                                            :value="user.role"
+                                            class="form-select form-select-sm w-auto"
+                                            :aria-label="`Role for ${user.name}`"
+                                            @change="changeRole(user, ($event.target as HTMLSelectElement).value)"
+                                        >
+                                            <option v-for="value in user.assignable_roles" :key="value" :value="value">{{ roleLabel(value) }}</option>
+                                        </select>
+                                        <span v-else>{{ roleLabel(user.role) }}</span>
+                                    </td>
+                                    <td>
+                                        <button v-if="user.can_delete" type="button" class="btn btn-sm btn-outline-danger" @click="removeUser(user)">
+                                            Remove
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr v-if="users.length === 0">
+                                    <td colspan="5" class="text-center text-secondary py-4">No users yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </section>
+            </div>
+
+            <div v-if="invitations.length" class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Pending invitations</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-vcenter card-table">
+                            <tbody>
+                                <tr v-for="invitation in invitations" :key="invitation.id">
+                                    <td>{{ invitation.email }}</td>
+                                    <td>{{ roleLabel(invitation.role) }}</td>
+                                    <td v-if="isStaff" class="text-secondary">{{ invitation.account?.name ?? 'Staff' }}</td>
+                                    <td class="text-secondary">Expires {{ new Date(invitation.expires_at).toLocaleDateString() }}</td>
+                                    <td class="w-1">
+                                        <button v-if="invitation.can_revoke" type="button" class="btn btn-sm" @click="revoke(invitation)">
+                                            Revoke
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </AppLayout>
 </template>

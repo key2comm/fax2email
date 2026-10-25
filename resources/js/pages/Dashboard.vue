@@ -1,15 +1,8 @@
 <script setup lang="ts">
-import Heading from '@/components/Heading.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem, type SharedData } from '@/types';
+import { type SharedData } from '@/types';
 import { Head, usePage } from '@inertiajs/vue3';
-
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/dashboard',
-    },
-];
+import { IconInbox, IconSend } from '@tabler/icons-vue';
 
 const page = usePage<SharedData>();
 const user = page.props.auth.user;
@@ -18,13 +11,48 @@ const user = page.props.auth.user;
 <template>
     <Head title="Dashboard" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-4 p-4">
-            <Heading :title="`Welcome, ${user.name}`" :description="user.account ? user.account.name : 'Staff portal'" />
-            <div
-                class="rounded-xl border border-dashed border-sidebar-border/70 p-8 text-center text-sm text-muted-foreground dark:border-sidebar-border"
-            >
-                Received and sent faxes will appear here.
+    <AppLayout :title="`Welcome, ${user.name}`" :pretitle="user.account ? user.account.name : 'Staff portal'">
+        <div class="row row-deck row-cards">
+            <div class="col-sm-6">
+                <div class="card card-sm">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <span class="bg-primary text-white avatar"><IconInbox class="icon" /></span>
+                            </div>
+                            <div class="col">
+                                <div class="font-weight-medium">Received faxes</div>
+                                <div class="text-secondary">Coming soon</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="card card-sm">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-auto">
+                                <span class="bg-green text-white avatar"><IconSend class="icon" /></span>
+                            </div>
+                            <div class="col">
+                                <div class="font-weight-medium">Sent faxes</div>
+                                <div class="text-secondary">Coming soon</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="empty">
+                            <div class="empty-icon"><IconInbox class="icon" /></div>
+                            <p class="empty-title">No faxes yet</p>
+                            <p class="empty-subtitle text-secondary">Received and sent faxes will appear here once fax numbers are set up.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </AppLayout>

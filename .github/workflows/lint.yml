@@ -38,6 +38,9 @@ jobs:
       - name: Lint Frontend
         run: npm run lint
 
+      - name: Type-check Frontend
+        run: npx vue-tsc --noEmit
+
       # - name: Commit Changes
       #   uses: stefanzweifel/git-auto-commit-action@v5
       #   with:

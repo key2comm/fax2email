@@ -85,7 +85,7 @@ class UserController extends Controller
 
         $user->forceFill(['role' => $validated['role']])->save();
 
-        return back();
+        return back()->with('status', "{$user->name} is now {$user->role->label()}.");
     }
 
     public function destroy(User $user): RedirectResponse
@@ -94,6 +94,6 @@ class UserController extends Controller
 
         $user->delete();
 
-        return back();
+        return back()->with('status', "{$user->name} was removed.");
     }
 }

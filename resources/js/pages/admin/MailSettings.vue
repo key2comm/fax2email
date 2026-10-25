@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
-import SelectInput from '@/components/SelectInput.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import MailLayout from '@/layouts/admin/MailLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { watch } from 'vue';
+import { IconSend } from '@tabler/icons-vue';
+import { computed, watch } from 'vue';
 
 interface Props {
     settings: {
@@ -20,7 +17,6 @@ interface Props {
     hasPassword: boolean;
     isConfigured: boolean;
     testRecipient: string;
-    status?: string;
 }
 
 const props = defineProps<Props>();
@@ -38,6 +34,9 @@ watch(
     },
 );
 
+// Set by the test endpoint, which is not one of the form's own fields.
+const testError = computed(() => (form.errors as Record<string, string | undefined>).test);
+
 const save = () => {
     form.put(route('admin.mail.update'), { preserveScroll: true, onSuccess: () => form.reset('password') });
 };
@@ -51,32 +50,42 @@ const sendTest = () => {
     <Head title="Mail server" />
 
     <MailLayout>
-        <div class="flex max-w-2xl flex-col gap-6">
-            <p
-                v-if="!isConfigured"
-                class="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
-            >
-                No mail server is set up yet, so emails are not being delivered.
-            </p>
+        <form @submit.prevent="save" novalidate>
+            <div class="card-body">
+                <p class="text-secondary">The SMTP server used to send invitations, password resets and received faxes.</p>
 
-            <p
-                v-if="status"
-                class="rounded-md border border-green-300 bg-green-50 px-4 py-3 text-sm text-green-900 dark:border-green-700 dark:bg-green-950 dark:text-green-200"
-            >
-                {{ status }}
-            </p>
-            <InputError :message="form.errors.test" />
+                <div v-if="!isConfigured" class="alert alert-warning" role="alert">
+                    No mail server is set up yet, so emails are not being delivered.
+                </div>
+                <div v-if="testError" class="alert alert-danger" role="alert">{{ testError }}</div>
 
-            <form @submit.prevent="save" class="grid gap-6">
-                <div class="grid gap-4 sm:grid-cols-[1fr_8rem_10rem]">
-                    <div class="grid gap-2">
-                        <Label for="host">SMTP host</Label>
-                        <Input id="host" v-model="form.host" required placeholder="smtp.example.com" />
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label required" for="host">SMTP host</label>
+                        <input
+                            id="host"
+                            v-model="form.host"
+                            type="text"
+                            class="form-control"
+                            :class="{ 'is-invalid': form.errors.host }"
+                            placeholder="smtp.example.com"
+                            required
+                        />
                         <InputError :message="form.errors.host" />
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="port">Port</Label>
-                        <Input id="port" type="number" v-model="form.port" required min="1" max="65535" list="smtp-ports" />
+                    <div class="col-6 col-md-2">
+                        <label class="form-label required" for="port">Port</label>
+                        <input
+                            id="port"
+                            v-model="form.port"
+                            type="number"
+                            class="form-control"
+                            :class="{ 'is-invalid': form.errors.port }"
+                            min="1"
+                            max="65535"
+                            list="smtp-ports"
+                            required
+                        />
                         <datalist id="smtp-ports">
                             <option value="587">STARTTLS</option>
                             <option value="465">SSL/TLS</option>
@@ -85,60 +94,86 @@ const sendTest = () => {
                         </datalist>
                         <InputError :message="form.errors.port" />
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="encryption">Encryption</Label>
-                        <SelectInput id="encryption" v-model="form.encryption">
+                    <div class="col-6 col-md-4">
+                        <label class="form-label required" for="encryption">Encryption</label>
+                        <select id="encryption" v-model="form.encryption" class="form-select">
                             <option value="starttls">STARTTLS</option>
                             <option value="ssl">SSL/TLS</option>
                             <option value="none">None</option>
-                        </SelectInput>
+                        </select>
                         <InputError :message="form.errors.encryption" />
                     </div>
-                </div>
-                <p class="-mt-4 text-sm text-muted-foreground">
-                    Common ports: 587 (STARTTLS), 465 (SSL/TLS), 2525 (alternate STARTTLS port many providers offer when 587 is blocked), 25 (plain).
-                </p>
+                    <div class="col-12">
+                        <small class="form-hint">
+                            Common ports: 587 (STARTTLS), 465 (SSL/TLS), 2525 (alternate STARTTLS port many providers offer when 587 is blocked), 25
+                            (plain).
+                        </small>
+                    </div>
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="grid gap-2">
-                        <Label for="username">Username</Label>
-                        <Input id="username" v-model="form.username" autocomplete="off" placeholder="Leave blank if not required" />
+                    <div class="col-md-6">
+                        <label class="form-label" for="username">Username</label>
+                        <input
+                            id="username"
+                            v-model="form.username"
+                            type="text"
+                            class="form-control"
+                            :class="{ 'is-invalid': form.errors.username }"
+                            autocomplete="off"
+                            placeholder="Leave blank if not required"
+                        />
                         <InputError :message="form.errors.username" />
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="password">Password</Label>
-                        <Input
+                    <div class="col-md-6">
+                        <label class="form-label" for="password">Password</label>
+                        <input
                             id="password"
-                            type="password"
                             v-model="form.password"
+                            type="password"
+                            class="form-control"
+                            :class="{ 'is-invalid': form.errors.password }"
                             autocomplete="new-password"
                             :placeholder="hasPassword ? 'Saved. Leave blank to keep it' : 'Leave blank if not required'"
                         />
                         <InputError :message="form.errors.password" />
                     </div>
-                </div>
 
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div class="grid gap-2">
-                        <Label for="from_address">From address</Label>
-                        <Input id="from_address" type="email" v-model="form.from_address" required placeholder="fax@example.com" />
+                    <div class="col-md-6">
+                        <label class="form-label required" for="from_address">From address</label>
+                        <input
+                            id="from_address"
+                            v-model="form.from_address"
+                            type="email"
+                            class="form-control"
+                            :class="{ 'is-invalid': form.errors.from_address }"
+                            placeholder="fax@example.com"
+                            required
+                        />
                         <InputError :message="form.errors.from_address" />
                     </div>
-                    <div class="grid gap-2">
-                        <Label for="from_name">From name</Label>
-                        <Input id="from_name" v-model="form.from_name" required />
+                    <div class="col-md-6">
+                        <label class="form-label required" for="from_name">From name</label>
+                        <input
+                            id="from_name"
+                            v-model="form.from_name"
+                            type="text"
+                            class="form-control"
+                            :class="{ 'is-invalid': form.errors.from_name }"
+                            required
+                        />
                         <InputError :message="form.errors.from_name" />
                     </div>
                 </div>
-
-                <div class="flex flex-wrap items-center gap-3">
-                    <Button :disabled="form.processing">Save</Button>
-                    <Button type="button" variant="outline" :disabled="form.processing" @click="sendTest">
-                        Send test email to {{ testRecipient }}
-                    </Button>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="text-secondary small me-auto">The test uses the values on this form, so you can check them before saving.</span>
+                    <button type="button" class="btn" :disabled="form.processing" @click="sendTest">
+                        <IconSend class="icon" />
+                        Send test to {{ testRecipient }}
+                    </button>
+                    <button type="submit" class="btn btn-primary" :disabled="form.processing">Save</button>
                 </div>
-                <p class="text-sm text-muted-foreground">The test uses the values on this form, so you can check them before saving.</p>
-            </form>
-        </div>
+            </div>
+        </form>
     </MailLayout>
 </template>
