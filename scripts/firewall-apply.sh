@@ -131,6 +131,12 @@ dbpurgeage = $(( ($(setting recidive_ban_time_days) + 1) * 86400 ))
 EOF
 
     mkdir -p /etc/fail2ban/jail.d /etc/fail2ban/fail2ban.d
+    # The repeat-offender jail reads fail2ban's own log, which Rocky does not create
+    # until fail2ban is told to log there (by fail2ban.local below).
+    if [[ ! -f /var/log/fail2ban.log ]]; then
+        install -m 600 /dev/null /var/log/fail2ban.log
+        command -v restorecon >/dev/null && restorecon /var/log/fail2ban.log
+    fi
     changed=0
     for pair in "jail.local:/etc/fail2ban/jail.d/fax2email.local" "fail2ban.local:/etc/fail2ban/fail2ban.d/fax2email.local"; do
         src="$WORK/${pair%%:*}" dest="${pair#*:}"
