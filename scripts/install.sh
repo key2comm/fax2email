@@ -170,7 +170,11 @@ configure_nginx() {
 
 configure_services() {
     install_system_files "$SRC_DIR"
-    systemctl enable --now fax2email-queue.service fax2email-scheduler.timer fax2email-fax-events.service
+    systemctl enable --now fax2email-scheduler.timer
+    # Restart (not just start) the long-running workers, so a re-run of the installer
+    # replaces any worker still running the previous version's code and routes.
+    systemctl enable fax2email-queue.service fax2email-fax-events.service
+    systemctl restart fax2email-queue.service fax2email-fax-events.service
     systemctl enable fax2email-freeswitch.service
     systemctl restart fax2email-freeswitch.service
     systemctl enable fail2ban fax2email-firewall.service

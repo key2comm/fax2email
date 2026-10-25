@@ -4,8 +4,8 @@ A self-hosted, multi-tenant fax ↔ email service for Debian 13+ and Rocky Linux
 Faxes received on a business's numbers are emailed to them, and emails can be sent
 out as faxes. Built on Laravel, Vue (Inertia), PostgreSQL, Nginx and FreeSWITCH.
 
-> **Status:** early development. The portal, roles, mail server, firewall, SIP trunks and fax
-> reception work; routing received faxes to accounts and emailing them is next.
+> **Status:** early development. Receiving faxes works end to end (SIP trunk → fax number →
+> PDF by email). Sending faxes is next.
 
 ## Roles
 
@@ -33,12 +33,28 @@ addresses can reach the SIP ports (5060/5061); everyone else is dropped before r
 Hostnames are looked up again every 5 minutes, so the whitelist follows a provider's IP changes.
 The page shows each trunk's live status (registered, or reachable for IP trunks).
 
-Incoming fax calls are answered with T.38 when the provider offers it, otherwise G.711, and
-saved under `storage/app/faxes/incoming`.
+Incoming fax calls are answered with T.38 when the provider offers it, otherwise G.711.
 
 FreeSWITCH is built from source by the installer (pinned version, checksum-verified). It reads
 its SIP and dialplan configuration from the app, so changes in the portal apply within seconds.
 Set `FREESWITCH_EXTERNAL_IP` in `.env` if the server is behind NAT.
+
+## Fax numbers and received faxes
+
+Admins and Provisioners add **Fax numbers** (the DIDs your providers deliver) and assign each to
+an account. Account Owners can change a number's label and the email addresses it delivers to.
+If no recipients are set, faxes go to the account's owners.
+
+When a fax arrives, FreeSWITCH asks the app what to do with the dialled number. Numbers that
+aren't set up are refused. For a known number, the fax is received, converted to PDF and emailed
+as an attachment. Every account member can see their account's faxes under **Faxes**, download
+the PDF and, as an owner, email it again. Faxes are kept for 90 days.
+
+- Numbers are stored with their country code; 10-digit North American numbers get a leading 1,
+  and calls match whether the provider sends 10 or 11 digits.
+- The TIFF-to-PDF conversion is built in: the fax's compressed image data is copied into the PDF
+  unchanged, so there is no quality loss and no extra software to install.
+- If the mail server is down, delivery is retried for about an hour; the Faxes page shows any error.
 
 ## Firewall
 
