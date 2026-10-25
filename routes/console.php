@@ -10,3 +10,7 @@ Artisan::command('inspire', function () {
 
 // Deletes expired rows from models that define prunable(), such as the mail log.
 Schedule::command('model:prune')->daily();
+
+// SIP trunks: registration status for the portal, and provider hostname changes.
+Schedule::command('fax2email:trunk-status')->everyMinute()->withoutOverlapping();
+Schedule::command('fax2email:trunk-resolve')->everyFiveMinutes()->withoutOverlapping();

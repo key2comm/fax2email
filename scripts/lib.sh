@@ -68,4 +68,21 @@ install_system_files() {
     fi
     install -m 644 "$src"/deploy/systemd/fax2email-* /etc/systemd/system/
     systemctl daemon-reload
+    install_freeswitch_config "$src"
+}
+
+# Copy FreeSWITCH's static configuration (not vars.xml, which holds the secrets).
+# Sets FREESWITCH_CONFIG_CHANGED=1 when a file changed, so callers restart it only then.
+FREESWITCH_CONFIG_CHANGED=0
+install_freeswitch_config() {
+    local src="$1" file dest
+    getent group freeswitch >/dev/null || return 0
+    install -d -o root -g freeswitch -m 750 /etc/freeswitch /etc/freeswitch/autoload_configs
+    while IFS= read -r file; do
+        dest="/etc/freeswitch/${file#"$src/deploy/freeswitch/"}"
+        if ! cmp -s "$file" "$dest"; then
+            install -o root -g freeswitch -m 640 "$file" "$dest"
+            FREESWITCH_CONFIG_CHANGED=1
+        fi
+    done < <(find "$src/deploy/freeswitch" -type f -name '*.xml')
 }

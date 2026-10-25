@@ -141,6 +141,10 @@ class FirewallController extends Controller
     {
         Gate::authorize('manage-settings');
 
+        if ($rule->source === 'trunk') {
+            return back()->withErrors(['cidr' => "{$rule->cidr} belongs to a SIP trunk. Edit or delete the trunk under SIP trunks instead."]);
+        }
+
         if ($rule->source === 'fail2ban') {
             // fail2ban owns this ban; ask the apply service to lift it there.
             $rule->forceFill(['unban_requested_at' => now()])->save();
@@ -210,8 +214,9 @@ class FirewallController extends Controller
         return [
             'id' => $rule->id,
             'cidr' => $rule->cidr,
-            'source' => FirewallSettings::jailLabel($rule->jail),
+            'source' => $rule->source === 'trunk' ? 'Provider trunk' : FirewallSettings::jailLabel($rule->jail),
             'is_fail2ban' => $rule->source === 'fail2ban',
+            'is_trunk' => $rule->source === 'trunk',
             'note' => $rule->note,
             'created_by' => $rule->creator?->name,
             'created_at' => $rule->created_at->toIso8601String(),

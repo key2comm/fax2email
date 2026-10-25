@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import FirewallLayout, { type FirewallStatus } from '@/layouts/admin/FirewallLayout.vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { IconShieldCheck } from '@tabler/icons-vue';
 import { computed } from 'vue';
 
@@ -11,6 +11,7 @@ interface RuleRow {
     note: string | null;
     created_by: string | null;
     created_at: string;
+    is_trunk: boolean;
 }
 
 const props = defineProps<{
@@ -96,14 +97,18 @@ const remove = (rule: RuleRow) => {
                 </thead>
                 <tbody>
                     <tr v-for="rule in rules" :key="rule.id">
-                        <td class="font-monospace">{{ rule.cidr }}</td>
+                        <td class="font-monospace">
+                            {{ rule.cidr }}
+                            <span v-if="rule.is_trunk" class="badge bg-purple-lt ms-1">Provider trunk</span>
+                        </td>
                         <td class="text-secondary">{{ rule.note || '—' }}</td>
                         <td class="text-secondary text-nowrap">
                             {{ new Date(rule.created_at).toLocaleDateString() }}
                             <span v-if="rule.created_by"> by {{ rule.created_by }}</span>
                         </td>
                         <td>
-                            <button type="button" class="btn btn-sm" @click="remove(rule)">Remove</button>
+                            <Link v-if="rule.is_trunk" :href="route('admin.trunks.index')" class="btn btn-sm text-nowrap">Manage trunk</Link>
+                            <button v-else type="button" class="btn btn-sm" @click="remove(rule)">Remove</button>
                         </td>
                     </tr>
                     <tr v-if="rules.length === 0">

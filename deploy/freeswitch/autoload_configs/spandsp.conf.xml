@@ -1,0 +1,11 @@
+<configuration name="spandsp.conf" description="Fax settings">
+  <fax-settings>
+    <param name="use-ecm" value="true"/>
+    <param name="verbose" value="false"/>
+    <param name="disable-v17" value="false"/>
+    <param name="ident" value="fax2email"/>
+    <param name="header" value="fax2email"/>
+    <param name="spool-dir" value="/var/lib/freeswitch/fax"/>
+    <param name="file-prefix" value="fax"/>
+  </fax-settings>
+</configuration>

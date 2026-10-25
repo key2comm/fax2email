@@ -13,6 +13,10 @@ add table inet fax2email
 add set inet fax2email allow_inet4 { type ipv4_addr; flags interval; auto-merge; }
 add set inet fax2email allow_inet6 { type ipv6_addr; flags interval; auto-merge; }
 
+# SIP trunk (provider) addresses: the only ones allowed to open SIP connections.
+add set inet fax2email sip_trunk_inet4 { type ipv4_addr; flags interval; auto-merge; }
+add set inet fax2email sip_trunk_inet6 { type ipv6_addr; flags interval; auto-merge; }
+
 # Manual blocks from the portal, filled by fax2email-firewall-apply.
 add set inet fax2email block_inet4 { type ipv4_addr; flags interval, timeout; }
 add set inet fax2email block_inet6 { type ipv6_addr; flags interval, timeout; }
@@ -30,6 +34,10 @@ add set inet fax2email f2e_recidive_inet6 { type ipv6_addr; flags timeout; }
 add chain inet fax2email input { type filter hook input priority filter - 10; policy accept; }
 flush chain inet fax2email input
 add rule inet fax2email input iifname "lo" accept
+# SIP (5060 UDP/TCP, 5061 TLS) is closed to everyone except provider trunks. Only new
+# connections are checked, so replies to this server's own registrations get through.
+add rule inet fax2email input ct state new meta l4proto { tcp, udp } th dport { 5060, 5061 } ip saddr != @sip_trunk_inet4 drop
+add rule inet fax2email input ct state new meta l4proto { tcp, udp } th dport { 5060, 5061 } ip6 saddr != @sip_trunk_inet6 drop
 add rule inet fax2email input ip saddr @allow_inet4 accept
 add rule inet fax2email input ip6 saddr @allow_inet6 accept
 add rule inet fax2email input ip saddr @block_inet4 drop

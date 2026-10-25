@@ -1,0 +1,21 @@
+[Unit]
+Description=FreeSWITCH for fax2email (receives and sends faxes over SIP)
+# FreeSWITCH fetches its SIP configuration from the app at start-up.
+After=network-online.target nginx.service php-fpm.service php8.4-fpm.service postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=freeswitch
+Group=freeswitch
+# Lets FreeSWITCH write received faxes into the app's storage folder.
+SupplementaryGroups=www-data
+ExecStart=/usr/local/bin/freeswitch -nf -nonat -nonatmap -nc
+RuntimeDirectory=freeswitch
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=100000
+LimitNPROC=60000
+
+[Install]
+WantedBy=multi-user.target

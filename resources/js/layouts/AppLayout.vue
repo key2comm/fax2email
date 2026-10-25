@@ -11,6 +11,7 @@ import {
     IconLogout,
     IconMail,
     IconMoon,
+    IconPlugConnected,
     IconShield,
     IconSun,
     IconUser,
@@ -42,6 +43,7 @@ const menu = computed<NavItem[]>(() => [
     ...(page.props.auth.can.manageSettings
         ? [
               { title: 'Mail server', href: '/admin/mail', icon: IconMail },
+              { title: 'SIP trunks', href: '/admin/trunks', icon: IconPlugConnected },
               { title: 'Firewall', href: '/admin/firewall', icon: IconShield },
           ]
         : []),

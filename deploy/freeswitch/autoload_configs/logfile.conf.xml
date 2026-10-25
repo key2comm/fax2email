@@ -1,0 +1,19 @@
+<configuration name="logfile.conf" description="File logging">
+  <settings>
+    <param name="rotate-on-hup" value="true"/>
+  </settings>
+  <profiles>
+    <profile name="default">
+      <settings>
+        <!-- fail2ban's f2e_sip jail watches this file for failed SIP authentication. -->
+        <param name="logfile" value="/var/log/freeswitch/freeswitch.log"/>
+        <param name="rollover" value="52428800"/>
+        <param name="maximum-rotate" value="10"/>
+        <param name="uuid" value="true"/>
+      </settings>
+      <mappings>
+        <map name="all" value="info,notice,warning,err,crit,alert"/>
+      </mappings>
+    </profile>
+  </profiles>
+</configuration>

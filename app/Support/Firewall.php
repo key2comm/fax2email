@@ -46,6 +46,7 @@ class Firewall
      * The desired state, one instruction per line, for the apply service:
      *
      *   allow <cidr>
+     *   trunk <cidr>           (a SIP provider; only these may reach the SIP ports)
      *   block <cidr> <seconds left, 0 = permanent>
      *   unban <jail> <ip>
      *   jail <name> <0|1>
@@ -55,8 +56,12 @@ class Firewall
     {
         $lines = [];
 
-        foreach (FirewallRule::where('type', FirewallRule::ALLOW)->orderBy('cidr')->pluck('cidr') as $cidr) {
+        $allowed = FirewallRule::where('type', FirewallRule::ALLOW)->orderBy('cidr')->get(['cidr', 'source']);
+        foreach ($allowed->pluck('cidr')->unique() as $cidr) {
             $lines[] = "allow {$cidr}";
+        }
+        foreach ($allowed->where('source', 'trunk')->pluck('cidr')->unique() as $cidr) {
+            $lines[] = "trunk {$cidr}";
         }
 
         // nftables rejects overlapping ranges in one set, so skip any block

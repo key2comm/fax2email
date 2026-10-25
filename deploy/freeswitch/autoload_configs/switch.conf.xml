@@ -1,0 +1,13 @@
+<configuration name="switch.conf" description="Core configuration">
+  <settings>
+    <param name="colorize-console" value="false"/>
+    <param name="max-sessions" value="500"/>
+    <param name="sessions-per-second" value="30"/>
+    <param name="loglevel" value="info"/>
+    <!-- Media (RTP/T.38) ports. The installer opens this range in the firewall. -->
+    <param name="rtp-start-port" value="16384"/>
+    <param name="rtp-end-port" value="32768"/>
+    <param name="rtp-enable-zrtp" value="false"/>
+    <param name="dump-cores" value="no"/>
+  </settings>
+</configuration>

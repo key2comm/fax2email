@@ -4,8 +4,11 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\FirewallController;
 use App\Http\Controllers\Admin\MailLogController;
 use App\Http\Controllers\Admin\MailSettingsController;
+use App\Http\Controllers\Admin\SipTrunkController;
+use App\Http\Controllers\FreeswitchXmlController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\UserController;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -37,7 +40,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('admin/firewall/rules', [FirewallController::class, 'store'])->name('admin.firewall.rules.store');
     Route::delete('admin/firewall/rules/{rule}', [FirewallController::class, 'destroy'])->name('admin.firewall.rules.destroy');
     Route::put('admin/firewall/settings', [FirewallController::class, 'updateSettings'])->name('admin.firewall.settings.update');
+
+    Route::resource('admin/trunks', SipTrunkController::class)->except('show')->parameters(['trunks' => 'trunk'])->names('admin.trunks');
 });
+
+// FreeSWITCH fetches its configuration here (mod_xml_curl). Machine-to-machine:
+// no session or CSRF token; the controller checks the source address and credentials.
+Route::post('freeswitch/xml', FreeswitchXmlController::class)
+    ->withoutMiddleware(ValidateCsrfToken::class)
+    ->name('freeswitch.xml');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/auth.php';

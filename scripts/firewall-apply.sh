@@ -42,12 +42,13 @@ valid_ip() { [[ "$1" =~ $IPV4 || "$1" =~ $IPV6 ]]; }
 valid_jail() { local j; for j in "${JAILS[@]}" "$RECIDIVE"; do [[ "$1" == "$j" ]] && return 0; done; return 1; }
 
 # --- Read and validate the desired state ------------------------------------
-declare -A ALLOW=([inet4]="" [inet6]="") BLOCK=([inet4]="" [inet6]="") JAIL_ON=() SETTING=()
+declare -A ALLOW=([inet4]="" [inet6]="") TRUNK=([inet4]="" [inet6]="") BLOCK=([inet4]="" [inet6]="") JAIL_ON=() SETTING=()
 UNBANS=()
 
 while read -r kind a b _; do
     case "$kind" in
         allow) valid_ip "$a" && ALLOW[$(family "$a")]+="$a, " ;;
+        trunk) valid_ip "$a" && TRUNK[$(family "$a")]+="$a, " ;;
         block)
             valid_ip "$a" && [[ "$b" =~ $INT ]] || continue
             if [[ "$b" == 0 ]]; then BLOCK[$(family "$a")]+="$a, "; else BLOCK[$(family "$a")]+="$a timeout ${b}s, "; fi ;;
@@ -65,7 +66,9 @@ nft -f "$LIB/fax2email.nft"
     for fam in inet4 inet6; do
         echo "flush set inet fax2email allow_$fam"
         echo "flush set inet fax2email block_$fam"
+        echo "flush set inet fax2email sip_trunk_$fam"
         [[ -n "${ALLOW[$fam]}" ]] && echo "add element inet fax2email allow_$fam { ${ALLOW[$fam]%, } }"
+        [[ -n "${TRUNK[$fam]}" ]] && echo "add element inet fax2email sip_trunk_$fam { ${TRUNK[$fam]%, } }"
         [[ -n "${BLOCK[$fam]}" ]] && echo "add element inet fax2email block_$fam { ${BLOCK[$fam]%, } }"
     done
 } > "$WORK/rules.nft"

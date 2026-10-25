@@ -61,6 +61,10 @@ finish_deploy() {
     artisan queue:restart
     systemctl restart fax2email-queue.service || true
     systemctl start fax2email-firewall.service || true
+    # Restarting FreeSWITCH drops calls in progress, so only do it when it changed.
+    if [[ "$FREESWITCH_CONFIG_CHANGED" == 1 || "${FREESWITCH_REBUILT:-0}" == 1 ]]; then
+        systemctl restart fax2email-freeswitch.service || true
+    fi
     artisan up
 }
 
@@ -164,6 +168,11 @@ main() {
     step "Installing v$target"
     sync_into_app "$release_dir"
     install_system_files "$release_dir"
+    if getent group freeswitch >/dev/null; then
+        local before; before="$(/usr/local/bin/freeswitch -version 2>/dev/null || true)"
+        "$release_dir/scripts/build-freeswitch.sh"
+        [[ "$(/usr/local/bin/freeswitch -version 2>/dev/null)" != "$before" ]] && FREESWITCH_REBUILT=1
+    fi
     fix_permissions
 
     step "Running database migrations"

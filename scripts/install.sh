@@ -50,14 +50,14 @@ install_packages() {
         apt-get update -q
         apt-get install -y -q nginx postgresql postgresql-client ca-certificates curl rsync tar \
             php-fpm php-cli php-pgsql php-mbstring php-xml php-intl php-zip php-bcmath php-gd php-curl \
-            nftables fail2ban python3-systemd
+            nftables fail2ban python3-systemd openssl
     else
         # fail2ban comes from EPEL. Only the server, journal and SELinux parts are
         # installed; the firewalld and sendmail add-ons are not needed.
         dnf install -y -q epel-release
         dnf install -y -q nginx postgresql-server postgresql curl rsync tar policycoreutils-python-utils \
             php-fpm php-cli php-pgsql php-mbstring php-xml php-intl php-pecl-zip php-bcmath php-gd \
-            php-opcache php-process nftables fail2ban-server fail2ban-systemd fail2ban-selinux
+            php-opcache php-process nftables fail2ban-server fail2ban-systemd fail2ban-selinux openssl
     fi
 }
 
@@ -171,19 +171,76 @@ configure_nginx() {
 configure_services() {
     install_system_files "$SRC_DIR"
     systemctl enable --now fax2email-queue.service fax2email-scheduler.timer
+    systemctl enable fax2email-freeswitch.service
+    systemctl restart fax2email-freeswitch.service
     systemctl enable fail2ban fax2email-firewall.service
     systemctl enable --now fax2email-firewall.path fax2email-firewall.timer
     # Creates the nftables table, writes the fail2ban jails and starts fail2ban.
     systemctl start fax2email-firewall.service
 }
 
+# Opens web, SIP and media ports in the distro firewall. fax2email's own nftables
+# table then limits the SIP ports to provider trunks (see deploy/nftables).
 configure_firewall() {
     if systemctl is-active --quiet firewalld; then
-        firewall-cmd --quiet --permanent --add-service=http --add-service=https
+        firewall-cmd --quiet --permanent --add-service=http --add-service=https \
+            --add-port=5060/udp --add-port=5060/tcp --add-port=5061/tcp --add-port=16384-32768/udp
         firewall-cmd --quiet --reload
     elif command -v ufw >/dev/null && ufw status | grep -q '^Status: active'; then
-        ufw allow 80/tcp >/dev/null
-        ufw allow 443/tcp >/dev/null
+        local port
+        for port in 80/tcp 443/tcp 5060/udp 5060/tcp 5061/tcp 16384:32768/udp; do
+            ufw allow "$port" >/dev/null
+        done
+    fi
+}
+
+# Builds FreeSWITCH from source (see build-freeswitch.sh) and sets it up to run as
+# the freeswitch user, fetching its SIP configuration from the app.
+install_freeswitch() {
+    "$SRC_DIR/scripts/build-freeswitch.sh"
+
+    getent group freeswitch >/dev/null || groupadd -r freeswitch
+    getent passwd freeswitch >/dev/null || useradd -r -g freeswitch -M -d /var/lib/freeswitch -s /sbin/nologin freeswitch
+    local dir
+    for dir in /var/log/freeswitch /var/lib/freeswitch /var/lib/freeswitch/db /var/lib/freeswitch/fax \
+        /var/lib/freeswitch/storage /var/lib/freeswitch/recordings /var/cache/freeswitch; do
+        install -d -o freeswitch -g freeswitch -m 750 "$dir"
+    done
+    # fail2ban's SIP jail only starts once this log exists.
+    [[ -f /var/log/freeswitch/freeswitch.log ]] || install -o freeswitch -g freeswitch -m 640 /dev/null /var/log/freeswitch/freeswitch.log
+    install -d -o "$WEB_USER" -g "$WEB_USER" -m 2775 "$APP_DIR/storage/app/faxes" "$APP_DIR/storage/app/faxes/incoming"
+
+    # Secrets shared by FreeSWITCH (vars.xml) and the app (.env). Reused on re-runs.
+    local esl_password xml_password
+    esl_password="$(env_value FREESWITCH_ESL_PASSWORD)"
+    xml_password="$(env_value FREESWITCH_XML_PASSWORD)"
+    [[ -n "$esl_password" ]] || esl_password="$(php -r 'echo bin2hex(random_bytes(20));')"
+    [[ -n "$xml_password" ]] || xml_password="$(php -r 'echo bin2hex(random_bytes(20));')"
+    set_env FREESWITCH_ESL_PASSWORD "$esl_password"
+    set_env FREESWITCH_XML_PASSWORD "$xml_password"
+
+    install_freeswitch_config "$SRC_DIR"
+    cat > /etc/freeswitch/vars.xml <<EOF
+<!-- Written by the fax2email installer. Holds secrets; do not share. -->
+<include>
+  <X-PRE-PROCESS cmd="set" data="esl_password=$esl_password"/>
+  <X-PRE-PROCESS cmd="set" data="xml_curl_credentials=freeswitch:$xml_password"/>
+  <X-PRE-PROCESS cmd="set" data="default_password=$(php -r 'echo bin2hex(random_bytes(16));')"/>
+</include>
+EOF
+    chown root:freeswitch /etc/freeswitch/vars.xml
+    chmod 640 /etc/freeswitch/vars.xml
+
+    # Self-signed certificate for SIP over TLS (port 5061), valid 10 years.
+    install -d -o root -g freeswitch -m 750 /etc/freeswitch/tls
+    if [[ ! -f /etc/freeswitch/tls/agent.pem ]]; then
+        openssl req -x509 -newkey rsa:2048 -nodes -days 3650 -subj "/CN=$SERVER_NAME" \
+            -keyout /etc/freeswitch/tls/key.pem -out /etc/freeswitch/tls/cert.pem 2>/dev/null
+        cat /etc/freeswitch/tls/cert.pem /etc/freeswitch/tls/key.pem > /etc/freeswitch/tls/agent.pem
+        cp /etc/freeswitch/tls/cert.pem /etc/freeswitch/tls/cafile.pem
+        rm -f /etc/freeswitch/tls/key.pem
+        chown root:freeswitch /etc/freeswitch/tls/*.pem
+        chmod 640 /etc/freeswitch/tls/*.pem
     fi
 }
 
@@ -253,9 +310,11 @@ main() {
     setup_app
     step "Configuring Nginx"
     configure_nginx
-    step "Starting the queue worker, scheduler, firewall and fail2ban"
+    step "Installing FreeSWITCH (built from source; this takes a few minutes)"
+    install_freeswitch
+    step "Starting FreeSWITCH, the queue worker, scheduler, firewall and fail2ban"
     configure_services
-    step "Opening the firewall for HTTP and HTTPS"
+    step "Opening the firewall for HTTP, HTTPS, SIP and fax media"
     configure_firewall
     step "Creating the first Admin login"
     create_admin
