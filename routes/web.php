@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\Admin\MailSettingsController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
@@ -21,6 +22,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');
     Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.destroy');
+
+    Route::get('admin/mail', [MailSettingsController::class, 'edit'])->name('admin.mail.edit');
+    Route::put('admin/mail', [MailSettingsController::class, 'update'])->name('admin.mail.update');
+    Route::post('admin/mail/test', [MailSettingsController::class, 'test'])->name('admin.mail.test');
 });
 
 require __DIR__.'/settings.php';

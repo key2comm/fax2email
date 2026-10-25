@@ -50,6 +50,7 @@ class HandleInertiaRequests extends Middleware
                 'can' => [
                     'manageAccounts' => $request->user()?->can('viewAny', Account::class) ?? false,
                     'manageUsers' => $request->user()?->can('viewAny', User::class) ?? false,
+                    'manageSettings' => $request->user()?->can('manage-settings') ?? false,
                 ],
             ],
         ]);

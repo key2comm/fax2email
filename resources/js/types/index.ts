@@ -5,6 +5,7 @@ export interface Auth {
     can: {
         manageAccounts: boolean;
         manageUsers: boolean;
+        manageSettings: boolean;
     };
 }
 

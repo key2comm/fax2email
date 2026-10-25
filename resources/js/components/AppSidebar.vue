@@ -4,7 +4,7 @@ import NavUser from '@/components/NavUser.vue';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Building2, LayoutGrid, Users } from 'lucide-vue-next';
+import { Building2, LayoutGrid, Mail, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -18,6 +18,7 @@ const mainNavItems = computed<NavItem[]>(() => [
     },
     ...(page.props.auth.can.manageAccounts ? [{ title: 'Accounts', href: '/accounts', icon: Building2 }] : []),
     ...(page.props.auth.can.manageUsers ? [{ title: 'Users', href: '/users', icon: Users }] : []),
+    ...(page.props.auth.can.manageSettings ? [{ title: 'Mail server', href: '/admin/mail', icon: Mail }] : []),
 ]);
 </script>
 

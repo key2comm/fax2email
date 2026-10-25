@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class InvitationController extends Controller
 {
@@ -40,7 +41,13 @@ class InvitationController extends Controller
             'invited_by' => $request->user()->id,
         ]);
 
-        Notification::route('mail', $invitation->email)->notify(new UserInvited($invitation, $token));
+        try {
+            Notification::route('mail', $invitation->email)->notify(new UserInvited($invitation, $token));
+        } catch (TransportExceptionInterface $e) {
+            $invitation->delete();
+
+            return back()->withErrors(['email' => 'The invitation email could not be sent. Check the mail server settings. ('.$e->getMessage().')']);
+        }
 
         return back();
     }
