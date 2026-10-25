@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Role;
 use App\Models\Account;
 use App\Models\Invitation;
+use App\Models\MailLog;
 use App\Models\User;
 use App\Notifications\UserInvited;
 use Illuminate\Http\RedirectResponse;
@@ -44,6 +45,7 @@ class InvitationController extends Controller
         try {
             Notification::route('mail', $invitation->email)->notify(new UserInvited($invitation, $token));
         } catch (TransportExceptionInterface $e) {
+            MailLog::recordFailure($e);
             $invitation->delete();
 
             return back()->withErrors(['email' => 'The invitation email could not be sent. Check the mail server settings. ('.$e->getMessage().')']);

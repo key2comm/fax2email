@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\MailLog;
 use App\Models\Setting;
 use App\Support\MailSettings;
 use Illuminate\Http\RedirectResponse;
@@ -62,6 +63,8 @@ class MailSettingsController extends Controller
                 fn ($message) => $message->to($request->user()->email)->subject('Test email from '.config('app.name')),
             );
         } catch (Throwable $e) {
+            MailLog::recordFailure($e);
+
             return back()->withErrors(['test' => 'The test email could not be sent: '.$e->getMessage()]);
         }
 

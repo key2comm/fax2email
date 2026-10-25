@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\Admin\MailLogController;
 use App\Http\Controllers\Admin\MailSettingsController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\UserController;
@@ -26,6 +27,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('admin/mail', [MailSettingsController::class, 'edit'])->name('admin.mail.edit');
     Route::put('admin/mail', [MailSettingsController::class, 'update'])->name('admin.mail.update');
     Route::post('admin/mail/test', [MailSettingsController::class, 'test'])->name('admin.mail.test');
+    Route::get('admin/mail/log', [MailLogController::class, 'index'])->name('admin.mail.log');
 });
 
 require __DIR__.'/settings.php';

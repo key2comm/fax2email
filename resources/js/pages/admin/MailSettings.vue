@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
 import SelectInput from '@/components/SelectInput.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem } from '@/types';
+import MailLayout from '@/layouts/admin/MailLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { watch } from 'vue';
 
@@ -26,8 +24,6 @@ interface Props {
 }
 
 const props = defineProps<Props>();
-
-const breadcrumbs: BreadcrumbItem[] = [{ title: 'Mail server', href: '/admin/mail' }];
 
 const form = useForm({ ...props.settings, password: '' });
 
@@ -54,10 +50,8 @@ const sendTest = () => {
 <template>
     <Head title="Mail server" />
 
-    <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex max-w-2xl flex-col gap-6 p-4">
-            <Heading title="Outgoing mail server" description="The SMTP server used to send invitations, password resets and received faxes." />
-
+    <MailLayout>
+        <div class="flex max-w-2xl flex-col gap-6">
             <p
                 v-if="!isConfigured"
                 class="rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
@@ -146,5 +140,5 @@ const sendTest = () => {
                 <p class="text-sm text-muted-foreground">The test uses the values on this form, so you can check them before saving.</p>
             </form>
         </div>
-    </AppLayout>
+    </MailLayout>
 </template>

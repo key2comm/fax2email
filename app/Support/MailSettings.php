@@ -40,6 +40,10 @@ class MailSettings
      */
     public static function apply(array $settings): void
     {
+        // Build the mail manager first, so loading the stored settings as it
+        // resolves cannot overwrite the settings applied here.
+        Mail::getFacadeRoot();
+
         self::configure($settings);
 
         // Drop any mailer already built from the old settings.
@@ -70,8 +74,8 @@ class MailSettings
                 'scheme' => $settings['encryption'] === 'ssl' ? 'smtps' : 'smtp',
                 'host' => $settings['host'],
                 'port' => (int) $settings['port'],
-                'username' => $settings['username'] ?: null,
-                'password' => $settings['password'] ?: null,
+                'username' => ($settings['username'] ?? null) ?: null,
+                'password' => ($settings['password'] ?? null) ?: null,
                 'require_tls' => $settings['encryption'] === 'starttls',
                 'auto_tls' => $settings['encryption'] !== 'none',
                 'timeout' => 15,
