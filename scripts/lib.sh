@@ -61,7 +61,7 @@ install_system_files() {
     rm -f /usr/local/bin/fax2email-update
     if [[ -d /etc/fail2ban ]]; then
         install -m 644 "$src/deploy/fail2ban/action.d/fax2email.conf" /etc/fail2ban/action.d/
-        install -m 644 "$src/deploy/fail2ban/filter.d/fax2email-portal.conf" /etc/fail2ban/filter.d/
+        install -m 644 "$src"/deploy/fail2ban/filter.d/fax2email-*.conf /etc/fail2ban/filter.d/
     fi
     if command -v restorecon >/dev/null; then
         restorecon -R "$SYSTEM_LIB" /usr/local/sbin/fax2email-* /etc/fail2ban 2>/dev/null || true

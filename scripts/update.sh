@@ -23,7 +23,8 @@ source "$LIB/lib.sh"
 
 # Root-owned files outside the app directory that an update replaces.
 SYSTEM_PATHS=(usr/local/lib/fax2email usr/local/sbin/fax2email-update usr/local/sbin/fax2email-firewall-apply
-    etc/fail2ban/action.d/fax2email.conf etc/fail2ban/filter.d/fax2email-portal.conf)
+    etc/fail2ban/action.d/fax2email.conf etc/fail2ban/filter.d/fax2email-portal.conf
+    etc/fail2ban/filter.d/fax2email-sip.conf)
 
 KEEP_BACKUPS=5
 DEFAULT_REPOSITORY=key2comm/fax2email

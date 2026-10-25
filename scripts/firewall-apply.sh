@@ -21,6 +21,9 @@ JAILS=(f2e_sip f2e_portal f2e_ssh)
 RECIDIVE=f2e_recidive
 SIP_LOG=/var/log/freeswitch/freeswitch.log
 WORK="$(mktemp -d -p /run fax2email-firewall.XXXXXX)"
+TRIGGER="$APP_DIR/storage/app/firewall/changed"
+# Marks when this run started, to notice portal changes made while it runs.
+touch "$WORK/started"
 FAIL2BAN_RUNNING=0
 
 report() {
@@ -106,7 +109,7 @@ $limits
 
 [f2e_sip]
 enabled = $sip_enabled
-filter = freeswitch[mode=normal]
+filter = fax2email-sip
 logpath = $SIP_LOG
 backend = auto
 $limits
@@ -186,3 +189,11 @@ EOF
 fi
 
 report ""
+
+# A change saved while this run was busy only reaches systemd as a start request
+# for the job already running, which it drops. Run again so it is not missed.
+RERUNS="${FAX2EMAIL_FIREWALL_RERUNS:-0}"
+if [[ "$TRIGGER" -nt "$WORK/started" && "$RERUNS" -lt 3 ]]; then
+    rm -rf "$WORK"
+    FAX2EMAIL_FIREWALL_RERUNS=$((RERUNS + 1)) exec "$0"
+fi
