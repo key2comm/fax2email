@@ -170,7 +170,7 @@ configure_selinux() {
     done
     restorecon -R "$APP_DIR"
     # PHP connects to PostgreSQL over TCP and sends mail over SMTP (25, 465, 587, plus 2525).
-    setsebool -P httpd_can_network_connect_db 1 httpd_can_sendmail 1
+    setsebool -P httpd_can_network_connect_db=1 httpd_can_sendmail=1
     semanage port -a -t smtp_port_t -p tcp 2525 2>/dev/null || semanage port -m -t smtp_port_t -p tcp 2525
 }
 

@@ -3,6 +3,10 @@
 All notable changes to fax2email. Versions follow [semantic versioning](https://semver.org).
 Update a server with `sudo fax2email-update`.
 
+## v0.1.4
+
+- Fixed: the installer failed on Rocky Linux with SELinux enabled ("Usage: setsebool").
+
 ## v0.1.3
 
 - **Branding** (Settings → Branding): your own app name, logo (with an optional dark-mode
