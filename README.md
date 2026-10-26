@@ -116,21 +116,47 @@ Files are owned by `www-data:www-data` on both Debian and Rocky Linux.
 
 Requires a fresh **Debian 13+** or **Rocky Linux 10+** server and a user with `sudo`.
 
+One command downloads the latest release, checks it, and starts the guided setup. While the
+repository is private, use a [fine-grained GitHub token](https://github.com/settings/personal-access-tokens)
+with read-only **Contents** access to `key2comm/fax2email`:
+
 ```bash
-cd /tmp
-# Download the latest release archive. While the repository is private, use the GitHub CLI:
-gh release download --repo key2comm/fax2email --pattern 'fax2email-*.tar.gz'
-tar -xzf fax2email-v*.tar.gz
-sudo ./fax2email-v*/scripts/install.sh --server-name fax.example.com
+TOKEN=github_pat_xxx
+curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github.raw" \
+  https://api.github.com/repos/key2comm/fax2email/contents/scripts/bootstrap.sh | sudo FAX2EMAIL_TOKEN=$TOKEN bash
 ```
 
-The installer sets up Nginx, PHP, PostgreSQL, the `www-data` user, SELinux rules (Rocky),
-the firewall, a background queue worker and scheduler (systemd), and asks for the first
-Admin's name, email and password. It is safe to run again. Run it with `--help` for options,
-including `--admin-password-file` for unattended installs.
+The token is saved so `sudo fax2email-update` can fetch updates. Once the repository is public:
 
-When it finishes, log in at `http://<server-name>` and set up the outgoing mail server
-under **Mail server**.
+```bash
+curl -fsSL https://raw.githubusercontent.com/key2comm/fax2email/main/scripts/bootstrap.sh | sudo bash
+```
+
+Or download the release archive yourself, unpack it, and run `sudo ./fax2email-v*/scripts/install.sh`.
+
+The installer walks you through a few questions, with defaults in [brackets]:
+
+1. **Portal address**: the hostname or IP people will use to open the portal.
+2. **First Admin**: name, email and password for the first login (new servers only).
+3. **Email-to-fax domain** (optional), e.g. `fax.yourdomain.com`. PDFs emailed to
+   `<fax number>@fax.yourdomain.com` are faxed. Point that domain's MX record at the server.
+
+It shows a summary to confirm, then installs everything without further prompts: Nginx, PHP,
+PostgreSQL, FreeSWITCH (built from source, a few minutes), fail2ban, the firewall rules, and
+Postfix/OpenDKIM if email-to-fax is on. It is safe to run again: it suggests your current
+settings, keeps the database and Admin, and leaving the email-to-fax domain blank turns it off.
+
+For automated installs, pass the answers as options with `--unattended`:
+
+```bash
+sudo ./fax2email-v*/scripts/install.sh --unattended --server-name fax.example.com \
+  --admin-name "Jane Admin" --admin-email jane@example.com --admin-password-file /tmp/admin-pw \
+  --fax-email-domain fax.example.com
+rm /tmp/admin-pw   # the file holding the Admin password
+```
+
+When it finishes, log in at `http://<portal address>` and set up the outgoing mail server
+under **Mail server → SMTP Settings**.
 
 ## Updating a server
 

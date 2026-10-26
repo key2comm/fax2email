@@ -154,6 +154,8 @@ configure_env() {
     set_env DB_USERNAME "$DB_USER"
     set_env DB_PASSWORD "$DB_PASSWORD"
     [[ -n "$(env_value UPDATE_REPOSITORY)" ]] || set_env UPDATE_REPOSITORY "$DEFAULT_REPOSITORY"
+    # From bootstrap.sh or the walk-through: lets fax2email-update download releases from the private repo.
+    [[ -z "$UPDATE_TOKEN" ]] || set_env UPDATE_GITHUB_TOKEN "$UPDATE_TOKEN"
     fix_permissions
     [[ -n "$(env_value APP_KEY)" ]] || artisan key:generate --force
 }
@@ -485,12 +487,23 @@ EOF
     FAX_EMAIL_DOMAIN="$(ask "Email-to-fax domain, e.g. fax.yourdomain.com" "$default_domain" valid_fax_domain "Enter a domain like fax.yourdomain.com, or leave it blank.")"
     FAX_EMAIL_DOMAIN="${FAX_EMAIL_DOMAIN,,}"
 
+    if [[ -z "$UPDATE_TOKEN" && -z "$( [[ -f "$APP_DIR/.env" ]] && env_value UPDATE_GITHUB_TOKEN )" ]]; then
+        cat >/dev/tty <<EOF
+
+Updates
+   While the fax2email GitHub repository is private, updates need a GitHub token
+   with read access to it. Leave blank to skip; you can add it to .env later.
+EOF
+        UPDATE_TOKEN="$(tty_read "  GitHub token (input hidden): " secret)"
+    fi
+
     cat >/dev/tty <<EOF
 
 Summary
    Portal address:   http://$SERVER_NAME
 EOF
     [[ -n "$ADMIN_EMAIL" ]] && echo "   First Admin:      $ADMIN_NAME <$ADMIN_EMAIL>" >/dev/tty
+    [[ -n "$UPDATE_TOKEN" ]] && echo "   Updates:          GitHub token provided" >/dev/tty
     if [[ -n "$FAX_EMAIL_DOMAIN" ]]; then
         echo "   Email to fax:     <fax number>@$FAX_EMAIL_DOMAIN" >/dev/tty
     else
@@ -508,6 +521,7 @@ EOF
 
 main() {
     SERVER_NAME="" ADMIN_NAME="" ADMIN_EMAIL="" ADMIN_PASSWORD_FILE="" FAX_EMAIL_DOMAIN="" UNATTENDED=0 WIZARD_PASSWORD_FILE=""
+    UPDATE_TOKEN="${FAX2EMAIL_UPDATE_TOKEN:-}"
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --unattended) UNATTENDED=1; shift ;;
