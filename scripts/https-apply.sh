@@ -77,7 +77,9 @@ case "$mode" in
         [[ -n "$ACME_NO_VERIFY" ]] && args+=(--no-verify-ssl)
         if ! certbot "${args[@]}" >"$WORK/certbot.log" 2>&1; then
             detail="$(grep -E 'Detail:|Error|error:' "$WORK/certbot.log" | tail -n 3 | tr '\n' ' ' | sed 's/  */ /g')"
-            fail "Let's Encrypt could not issue a certificate for $domain. ${detail:-See /var/log/letsencrypt/letsencrypt.log.} Check that $domain points at this server and that port 80 is reachable from the internet."
+            still=""
+            grep -q "listen 443" "$NGINX_SITE" 2>/dev/null && still=" The current certificate is still in use."
+            fail "Let's Encrypt could not issue a certificate for $domain. ${detail:-See /var/log/letsencrypt/letsencrypt.log.} Check that $domain points at this server and that port 80 is reachable from the internet.$still"
         fi
         echo "$domain" > "$STATE_DIR/https-le-domain"
         cert="/etc/letsencrypt/live/$LE_NAME/fullchain.pem"

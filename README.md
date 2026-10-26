@@ -76,6 +76,27 @@ Either way, PDFs are converted with Ghostscript, sent through the fax number's t
 number, or the first enabled trunk), retried up to 3 times if busy or unanswered, and the
 sender gets an email with the result and a copy of what was sent.
 
+## HTTPS
+
+Admins turn on HTTPS under **Settings → HTTPS**:
+
+- **Let's Encrypt (free):** enter the portal's domain and an email address. The domain's DNS
+  must point at the server and port 80 must be reachable from the internet. The certificate is
+  checked daily and renewed automatically before it expires.
+- **Your own certificate:** paste or upload the certificate (with intermediates) and its
+  private key. They are checked first: valid, not expired, the key matches, and the certificate
+  covers the domain. The key is then kept in a root-only folder.
+- **Send HTTP visitors to HTTPS** can be switched on or off, and HTTPS can be turned off again.
+
+The portal never changes the web server itself. A root-owned service gets the certificate,
+rewrites the Nginx site from built-in templates, tests it, and puts the previous configuration
+back if Nginx rejects the new one, so a mistake can't take the portal offline.
+
+## Time zones
+
+Times are stored in UTC and shown in UTC by default. Each user can pick their own time zone
+under **Profile**, and the portal then shows every date and time in that zone.
+
 ## Firewall
 
 Admins manage the firewall under **Firewall** in the portal:
