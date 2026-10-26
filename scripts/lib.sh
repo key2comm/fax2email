@@ -77,7 +77,9 @@ write_nginx_config() {
         echo "server {"
         echo "    listen 80 default_server;"
         echo "    listen [::]:80 default_server;"
-        echo "    server_name ${domain:+$domain }_;"
+        # No catch-all "_" name: default_server already catches every other name, and
+        # Rocky's stock nginx.conf claims "_" too (Nginx would warn about the clash).
+        [[ -n "$domain" ]] && echo "    server_name $domain;"
         if [[ -n "$domain" && "$redirect" == 1 ]]; then
             echo "    # Let's Encrypt renewals are checked over plain HTTP."
             echo "    location ^~ /.well-known/acme-challenge/ {"
@@ -107,7 +109,7 @@ write_nginx_config() {
             echo "    listen 443 ssl default_server;"
             echo "    listen [::]:443 ssl default_server;"
             echo "    http2 on;"
-            echo "    server_name $domain _;"
+            echo "    server_name $domain;"
             echo "    ssl_certificate $cert;"
             echo "    ssl_certificate_key $key;"
             echo "    ssl_protocols TLSv1.2 TLSv1.3;"
@@ -145,9 +147,22 @@ install_system_files() {
     if command -v restorecon >/dev/null; then
         restorecon -R "$SYSTEM_LIB" /usr/local/sbin/fax2email-* /etc/fail2ban 2>/dev/null || true
     fi
+    install_selinux_module "$src"
     install -m 644 "$src"/deploy/systemd/fax2email-* /etc/systemd/system/
     systemctl daemon-reload
     install_freeswitch_config "$src"
+}
+
+# Load our SELinux rules (deploy/selinux), only when they changed: semodule is slow.
+install_selinux_module() {
+    local src="$1/deploy/selinux/fax2email.cil" copy="$SYSTEM_LIB/selinux/fax2email.cil"
+    command -v selinuxenabled >/dev/null && selinuxenabled && command -v semodule >/dev/null || return 0
+    [[ -f "$src" ]] || return 0
+    cmp -s "$src" "$copy" && semodule -l | grep -qx fax2email && return 0
+    semodule -i "$src"
+    install -D -m 644 "$src" "$copy"
+    # Re-create the watches that SELinux refused before.
+    systemctl try-restart fax2email-firewall.path fax2email-https.path 2>/dev/null || true
 }
 
 # Copy FreeSWITCH's static configuration (not vars.xml, which holds the secrets).

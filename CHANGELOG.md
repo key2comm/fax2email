@@ -3,6 +3,15 @@
 All notable changes to fax2email. Versions follow [semantic versioning](https://semver.org).
 Update a server with `sudo fax2email-update`.
 
+## v0.1.8
+
+- Fixed (Rocky Linux, SELinux): after the first save, HTTPS and firewall changes in the portal
+  could wait for the backup timer (up to a day for HTTPS) instead of applying right away.
+  Servers updating from v0.1.7 or older need this once, after `sudo fax2email-update`:
+  `sudo semodule -i /var/www/html/fax2email/deploy/selinux/fax2email.cil && sudo systemctl restart fax2email-firewall.path fax2email-https.path`
+- Fixed (Rocky Linux): Nginx warned about a "conflicting server name" with its stock site.
+- After an update, if the portal shows a blank page, reload it with Ctrl+Shift+R.
+
 ## v0.1.7
 
 - Fixed (Rocky Linux): sending a fax from the portal with a larger PDF failed with a blank page,

@@ -1,0 +1,5 @@
+; fax2email: let systemd's .path units (fax2email-firewall.path, fax2email-https.path)
+; watch the trigger files the portal writes under storage/app. Those files carry
+; httpd_sys_rw_content_t so PHP can write them; without this rule SELinux denies
+; systemd's inotify watch and changes wait for the backup timers instead.
+(allow init_t httpd_sys_rw_content_t (file (getattr open read watch)))
