@@ -5,12 +5,14 @@ import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { IconCircleCheck, IconHash, IconInbox } from '@tabler/icons-vue';
 
+type Status = 'received' | 'delivered' | 'queued' | 'sending' | 'sent' | 'failed';
+
 interface RecentFax {
     id: number;
-    from: string;
+    from: string | null;
     to: string | null;
     pages: number;
-    status: 'received' | 'delivered' | 'failed';
+    status: Status;
     has_pdf: boolean;
     created_at: string;
 }
@@ -23,9 +25,12 @@ defineProps<{
 const page = usePage<SharedData>();
 const user = page.props.auth.user;
 
-const statuses = {
+const statuses: Record<Status, { label: string; badge: string }> = {
     received: { label: 'Processing', badge: 'bg-yellow-lt' },
     delivered: { label: 'Delivered', badge: 'bg-green-lt' },
+    queued: { label: 'Queued', badge: 'bg-azure-lt' },
+    sending: { label: 'Sending…', badge: 'bg-yellow-lt' },
+    sent: { label: 'Sent', badge: 'bg-green-lt' },
     failed: { label: 'Failed', badge: 'bg-red-lt' },
 };
 

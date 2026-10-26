@@ -16,6 +16,7 @@ use App\Http\Controllers\SendFaxController;
 use App\Http\Controllers\UserController;
 use App\Models\Fax;
 use App\Models\FaxNumber;
+use App\Support\PhoneNumber;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -39,8 +40,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'recent' => Fax::visibleTo($request->user())->with('faxNumber:id,number,label')->latest('id')->limit(5)->get()
                 ->map(fn (Fax $fax) => [
                     'id' => $fax->id,
-                    'from' => $fax->caller_number ?: 'Unknown',
-                    'to' => $fax->faxNumber?->formatted() ?? $fax->called_number,
+                    'from' => $fax->isOutbound() ? $fax->faxNumber?->formatted() : ($fax->caller_number ?: 'Unknown'),
+                    'to' => $fax->isOutbound() ? PhoneNumber::format($fax->destination_number) : ($fax->faxNumber?->formatted() ?? $fax->called_number),
                     'pages' => $fax->pages,
                     'status' => $fax->status,
                     'has_pdf' => $fax->pdf_path !== null,
