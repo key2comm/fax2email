@@ -13,6 +13,7 @@ use App\Support\Fax\TiffToPdf;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -63,6 +64,8 @@ class FaxReceptionTest extends TestCase
 
     public function test_tiff_faxes_convert_to_pdf_at_their_real_size()
     {
+        // Without Ghostscript the CCITT PDF is kept as built.
+        Process::fake(['*' => Process::result(exitCode: 1)]);
         $pdf = sys_get_temp_dir().'/fax2email-test-'.getmypid().'.pdf';
         $convert = function (string $fixture) use ($pdf) {
             $this->assertSame(1, (new TiffToPdf)->convert(base_path("tests/fixtures/{$fixture}.tif"), $pdf));
@@ -83,6 +86,23 @@ class FaxReceptionTest extends TestCase
         $this->assertStringContainsString('/DecodeParms << /K 0 ', $convert('sent-g3'));
 
         unlink($pdf);
+    }
+
+    public function test_ghostscript_reencodes_fax_images_as_flate()
+    {
+        if (! Process::run(['gs', '--version'])->successful()) {
+            $this->markTestSkipped('Ghostscript is not installed.');
+        }
+        $pdf = sys_get_temp_dir().'/fax2email-test-flate-'.getmypid().'.pdf';
+
+        $this->assertSame(1, (new TiffToPdf)->convert(base_path('tests/fixtures/received-spandsp.tif'), $pdf));
+        $data = file_get_contents($pdf);
+        unlink($pdf);
+
+        // Edge's PDF viewer shows CCITT images as blank pages; Flate bitmaps show everywhere.
+        $this->assertStringNotContainsString('CCITTFaxDecode', $data);
+        $this->assertStringContainsString('/FlateDecode', $data);
+        $this->assertMatchesRegularExpression('#/Width 1728\s*/Height 1100#', $data);
     }
 
     public function test_numbers_are_matched_with_or_without_the_leading_1()

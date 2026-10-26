@@ -2,6 +2,7 @@
 
 namespace App\Support\Fax;
 
+use Illuminate\Support\Facades\Process;
 use RuntimeException;
 
 /**
@@ -9,6 +10,7 @@ use RuntimeException;
  * external tools. Fax pages are stored CCITT G3/G4-compressed, and PDF can
  * hold that data unchanged (CCITTFaxDecode), so pages are copied byte for
  * byte: no decoding, no quality loss. Uncompressed bilevel pages also work.
+ * Ghostscript then re-encodes the images as Flate (see reencodeImages()).
  *
  * Page size follows the fax resolution, so 204x98 "normal" and 204x196
  * "fine" faxes both come out at their real size (about US Letter / A4).
@@ -64,7 +66,33 @@ class TiffToPdf
             throw new RuntimeException("Cannot write {$pdfPath}.");
         }
 
+        $this->reencodeImages($pdfPath);
+
         return count($pages);
+    }
+
+    /**
+     * Some PDF viewers (Edge's built-in one among them) show CCITT fax images
+     * as blank pages. Ghostscript decodes them and stores plain Flate bitmaps
+     * instead, at full resolution, which every viewer can show. If that fails
+     * the CCITT PDF is kept: it is valid, and most viewers show it fine.
+     */
+    private function reencodeImages(string $pdfPath): void
+    {
+        $flatePath = "{$pdfPath}.flate";
+        $result = Process::timeout(120)->run([
+            'gs', '-q', '-dSAFER', '-dBATCH', '-dNOPAUSE',
+            '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4',
+            '-dAutoFilterMonoImages=false', '-dEncodeMonoImages=true', '-dMonoImageFilter=/FlateEncode', '-dDownsampleMonoImages=false',
+            '-sOutputFile='.$flatePath,
+            $pdfPath,
+        ]);
+
+        if ($result->successful() && is_file($flatePath) && filesize($flatePath) > 0) {
+            rename($flatePath, $pdfPath);
+        } else {
+            @unlink($flatePath);
+        }
     }
 
     /**
