@@ -3,6 +3,12 @@
 All notable changes to fax2email. Versions follow [semantic versioning](https://semver.org).
 Update a server with `sudo fax2email-update`.
 
+## v0.1.6
+
+- Fixed: with "Send HTTP visitors to HTTPS" on, FreeSWITCH could not load SIP trunks or the fax
+  dialplan ("Not loaded in FreeSWITCH yet"). After updating, restart FreeSWITCH once:
+  `sudo systemctl restart fax2email-freeswitch`.
+
 ## v0.1.5
 
 - **Inbound MX** (Settings → Mail server): the DNS records email-to-fax needs, filled in with
