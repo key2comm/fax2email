@@ -3,6 +3,16 @@
 All notable changes to fax2email. Versions follow [semantic versioning](https://semver.org).
 Update a server with `sudo fax2email-update`.
 
+## v0.1.2
+
+- **HTTPS from the portal** (Settings → HTTPS): free Let's Encrypt certificates that renew
+  automatically, or your own certificate; optional redirect from HTTP to HTTPS.
+- **Time zones:** each user can choose the time zone they see times in (Profile); the default
+  is UTC.
+- Admin pages are grouped under a **Settings** menu; the Mail server's first tab is now
+  **SMTP Settings**.
+- Fixed: unattended installer re-runs failed when an Admin already existed.
+
 ## v0.1.1
 
 - Added this changelog.
