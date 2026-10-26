@@ -48,6 +48,7 @@ export interface User {
     role: 'admin' | 'provisioner' | 'account_owner' | 'account_user';
     account_id: number | null;
     account: { id: number; name: string } | null;
+    timezone: string;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;

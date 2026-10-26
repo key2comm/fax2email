@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useDateTime } from '@/lib/datetime';
 import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { IconCircleCheck, IconHash, IconInbox } from '@tabler/icons-vue';
@@ -27,6 +28,8 @@ const statuses = {
     delivered: { label: 'Delivered', badge: 'bg-green-lt' },
     failed: { label: 'Failed', badge: 'bg-red-lt' },
 };
+
+const { formatDateTime } = useDateTime();
 </script>
 
 <template>
@@ -99,7 +102,7 @@ const statuses = {
                         <table class="table table-vcenter card-table">
                             <tbody>
                                 <tr v-for="fax in recent" :key="fax.id">
-                                    <td class="text-secondary text-nowrap">{{ new Date(fax.created_at).toLocaleString() }}</td>
+                                    <td class="text-secondary text-nowrap">{{ formatDateTime(fax.created_at) }}</td>
                                     <td class="font-monospace">{{ fax.from }}</td>
                                     <td class="font-monospace text-secondary">→ {{ fax.to }}</td>
                                     <td>{{ fax.pages }} {{ fax.pages === 1 ? 'page' : 'pages' }}</td>

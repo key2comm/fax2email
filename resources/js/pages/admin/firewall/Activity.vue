@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import FirewallLayout, { type FirewallStatus } from '@/layouts/admin/FirewallLayout.vue';
+import { useDateTime } from '@/lib/datetime';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { IconChevronLeft, IconChevronRight, IconSearch } from '@tabler/icons-vue';
 import { ref, watch } from 'vue';
@@ -45,6 +46,8 @@ const badges: Record<string, string> = {
     unblocked: 'bg-green-lt',
     whitelisted: 'bg-blue-lt',
 };
+
+const { formatDateTime } = useDateTime();
 </script>
 
 <template>
@@ -71,7 +74,7 @@ const badges: Record<string, string> = {
                 </thead>
                 <tbody>
                     <tr v-for="event in events.data" :key="event.id">
-                        <td class="text-secondary text-nowrap">{{ new Date(event.created_at).toLocaleString() }}</td>
+                        <td class="text-secondary text-nowrap">{{ formatDateTime(event.created_at) }}</td>
                         <td class="font-monospace">
                             <Link :href="route('admin.firewall.activity', { search: event.cidr })" class="text-reset">{{ event.cidr }}</Link>
                         </td>

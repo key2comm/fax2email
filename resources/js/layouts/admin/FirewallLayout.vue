@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useDateTime } from '@/lib/datetime';
 import { Link, usePage } from '@inertiajs/vue3';
 import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-vue';
 import { computed } from 'vue';
@@ -24,6 +25,8 @@ const tabs = [
 const page = usePage();
 const currentPath = computed(() => page.url.split('?')[0]);
 const healthy = computed(() => props.status.applied_at !== null && !props.status.error && props.status.fail2ban !== false);
+
+const { formatDateTime } = useDateTime();
 </script>
 
 <template>
@@ -37,7 +40,7 @@ const healthy = computed(() => props.status.applied_at !== null && !props.status
                         The firewall service has not applied any rules yet. It is installed by the installer and runs as root.
                     </template>
                     <template v-else>
-                        Rules last applied {{ new Date(status.applied_at).toLocaleString() }}.
+                        Rules last applied {{ formatDateTime(status.applied_at) }}.
                         <span v-if="status.fail2ban === false">fail2ban is not running, so automatic bans are paused.</span>
                     </template>
                     <div v-if="status.error" class="mt-1 text-danger">Last error: {{ status.error }}</div>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useDateTime } from '@/lib/datetime';
 import { type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { IconChevronLeft, IconChevronRight, IconDownload, IconInbox, IconMailForward, IconSend } from '@tabler/icons-vue';
@@ -73,6 +74,8 @@ const statusOptions = computed<Status[]>(() => (outbound.value ? ['queued', 'sen
 const resend = (fax: FaxRow) => {
     router.post(route('faxes.resend', fax.id), {}, { preserveScroll: true });
 };
+
+const { formatDateTime, formatTime } = useDateTime();
 </script>
 
 <template>
@@ -156,7 +159,7 @@ const resend = (fax: FaxRow) => {
                     <tbody>
                         <tr v-for="fax in faxes.data" :key="fax.id">
                             <td class="text-secondary text-nowrap">
-                                {{ new Date(fax.created_at).toLocaleString() }}
+                                {{ formatDateTime(fax.created_at) }}
                                 <div v-if="outbound && fax.sent_by" class="small">
                                     by {{ fax.sent_by }}{{ fax.source === 'email' ? ' (email)' : '' }}
                                 </div>
@@ -185,12 +188,10 @@ const resend = (fax: FaxRow) => {
                                 <span class="badge" :class="statuses[fax.status].badge">{{ statuses[fax.status].label }}</span>
                                 <div v-if="outbound && fax.attempts > 0 && fax.status !== 'sent'" class="small text-secondary">
                                     Attempt {{ fax.attempts
-                                    }}<template v-if="fax.next_attempt_at"
-                                        >, retrying {{ new Date(fax.next_attempt_at).toLocaleTimeString() }}</template
-                                    >
+                                    }}<template v-if="fax.next_attempt_at">, retrying {{ formatTime(fax.next_attempt_at) }}</template>
                                 </div>
                                 <div v-if="!outbound && fax.emailed_at" class="small text-secondary">
-                                    Emailed {{ new Date(fax.emailed_at).toLocaleString() }}
+                                    Emailed {{ formatDateTime(fax.emailed_at) }}
                                 </div>
                                 <div v-if="fax.email_error" class="small text-danger">{{ fax.email_error }}</div>
                                 <div

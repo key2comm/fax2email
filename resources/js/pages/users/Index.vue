@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useDateTime } from '@/lib/datetime';
 import { type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { IconUserPlus } from '@tabler/icons-vue';
@@ -81,6 +82,8 @@ const removeUser = (user: UserRow) => {
 const revoke = (invitation: InvitationRow) => {
     router.delete(route('invitations.destroy', invitation.id), { preserveScroll: true });
 };
+
+const { formatDate } = useDateTime();
 </script>
 
 <template>
@@ -205,7 +208,7 @@ const revoke = (invitation: InvitationRow) => {
                                     <td>{{ invitation.email }}</td>
                                     <td>{{ roleLabel(invitation.role) }}</td>
                                     <td v-if="isStaff" class="text-secondary">{{ invitation.account?.name ?? 'Staff' }}</td>
-                                    <td class="text-secondary">Expires {{ new Date(invitation.expires_at).toLocaleDateString() }}</td>
+                                    <td class="text-secondary">Expires {{ formatDate(invitation.expires_at) }}</td>
                                     <td class="w-1">
                                         <button v-if="invitation.can_revoke" type="button" class="btn btn-sm" @click="revoke(invitation)">
                                             Revoke

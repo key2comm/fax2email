@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import MailLayout from '@/layouts/admin/MailLayout.vue';
+import { useDateTime } from '@/lib/datetime';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { IconChevronLeft, IconChevronRight, IconSearch } from '@tabler/icons-vue';
 import { ref, watch } from 'vue';
@@ -56,7 +57,7 @@ const statuses = {
     failed: { label: 'Failed', badge: 'bg-red-lt' },
 };
 
-const formatDate = (iso: string) => new Date(iso).toLocaleString();
+const { formatDateTime } = useDateTime();
 </script>
 
 <template>
@@ -95,7 +96,7 @@ const formatDate = (iso: string) => new Date(iso).toLocaleString();
                 <tbody>
                     <template v-for="log in logs.data" :key="log.id">
                         <tr :aria-expanded="expanded === log.id" @click="expanded = expanded === log.id ? null : log.id">
-                            <td class="text-secondary text-nowrap">{{ formatDate(log.created_at) }}</td>
+                            <td class="text-secondary text-nowrap">{{ formatDateTime(log.created_at) }}</td>
                             <td class="text-truncate" style="max-width: 16rem">{{ log.recipients }}</td>
                             <td class="text-truncate" style="max-width: 24rem">
                                 {{ log.subject || '(no subject)' }}

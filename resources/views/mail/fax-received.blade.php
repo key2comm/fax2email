@@ -12,7 +12,7 @@ The fax is attached as a PDF.
 @endif
 | **To** | {{ $number?->formatted() ?? $fax->called_number }}@if ($number?->label) ({{ $number->label }})@endif |
 | **Pages** | {{ $fax->pages }} |
-| **Received** | {{ $fax->created_at->toDayDateTimeString() }} |
+| **Received** | {{ $fax->created_at->copy()->utc()->format('D, M j, Y g:i A') }} UTC |
 </x-mail::table>
 
 <x-mail::button :url="route('faxes.index')">

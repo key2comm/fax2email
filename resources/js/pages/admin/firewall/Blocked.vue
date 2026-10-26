@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import FirewallLayout, { type FirewallStatus } from '@/layouts/admin/FirewallLayout.vue';
+import { useDateTime } from '@/lib/datetime';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { IconBan } from '@tabler/icons-vue';
 
@@ -47,7 +48,7 @@ const unblock = (rule: RuleRow) => {
     }
 };
 
-const formatDate = (iso: string) => new Date(iso).toLocaleString();
+const { formatDateTime } = useDateTime();
 </script>
 
 <template>
@@ -116,8 +117,8 @@ const formatDate = (iso: string) => new Date(iso).toLocaleString();
                             {{ rule.note || (rule.is_fail2ban ? 'Too many failed attempts' : '—') }}
                             <div v-if="rule.created_by" class="small">by {{ rule.created_by }}</div>
                         </td>
-                        <td class="text-secondary text-nowrap">{{ formatDate(rule.created_at) }}</td>
-                        <td class="text-secondary text-nowrap">{{ rule.expires_at ? formatDate(rule.expires_at) : 'Permanent' }}</td>
+                        <td class="text-secondary text-nowrap">{{ formatDateTime(rule.created_at) }}</td>
+                        <td class="text-secondary text-nowrap">{{ rule.expires_at ? formatDateTime(rule.expires_at) : 'Permanent' }}</td>
                         <td>
                             <span v-if="rule.unban_requested" class="text-secondary small text-nowrap">Lifting…</span>
                             <button v-else type="button" class="btn btn-sm" @click="unblock(rule)">

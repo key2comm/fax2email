@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import MailLayout from '@/layouts/admin/MailLayout.vue';
+import { useDateTime } from '@/lib/datetime';
 import { Head, Link } from '@inertiajs/vue3';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-vue';
 
@@ -31,6 +32,8 @@ defineProps<{
     domain: string | null;
     keepDays: number;
 }>();
+
+const { formatDateTime } = useDateTime();
 </script>
 
 <template>
@@ -61,7 +64,7 @@ defineProps<{
                 </thead>
                 <tbody>
                     <tr v-for="email in emails.data" :key="email.id">
-                        <td class="text-secondary text-nowrap">{{ new Date(email.created_at).toLocaleString() }}</td>
+                        <td class="text-secondary text-nowrap">{{ formatDateTime(email.created_at) }}</td>
                         <td>
                             <div class="text-break">{{ email.from_address || '—' }}</div>
                             <div v-if="email.subject" class="small text-secondary text-truncate" style="max-width: 18rem">{{ email.subject }}</div>

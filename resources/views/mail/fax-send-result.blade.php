@@ -21,6 +21,7 @@ The fax to **{{ $fax->destination_name ? $fax->destination_name.' ('.$to.')' : $
 | **Receiver's fax ID** | {{ $fax->remote_station_id }} |
 @endif
 | **Attempts** | {{ $fax->attempts }} |
+| **{{ $fax->status === 'sent' ? 'Sent' : 'Finished' }}** | {{ ($fax->completed_at ?? now())->copy()->setTimezone($fax->user?->timezone ?? 'UTC')->format('D, M j, Y g:i A T') }} |
 </x-mail::table>
 
 <x-mail::button :url="route('faxes.index', ['direction' => 'outbound'])">

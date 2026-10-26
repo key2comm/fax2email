@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
 import FirewallLayout, { type FirewallStatus } from '@/layouts/admin/FirewallLayout.vue';
+import { useDateTime } from '@/lib/datetime';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import { IconShieldCheck } from '@tabler/icons-vue';
 import { computed } from 'vue';
@@ -38,6 +39,8 @@ const remove = (rule: RuleRow) => {
         router.delete(route('admin.firewall.rules.destroy', rule.id), { preserveScroll: true });
     }
 };
+
+const { formatDate } = useDateTime();
 </script>
 
 <template>
@@ -103,7 +106,7 @@ const remove = (rule: RuleRow) => {
                         </td>
                         <td class="text-secondary">{{ rule.note || '—' }}</td>
                         <td class="text-secondary text-nowrap">
-                            {{ new Date(rule.created_at).toLocaleDateString() }}
+                            {{ formatDate(rule.created_at) }}
                             <span v-if="rule.created_by"> by {{ rule.created_by }}</span>
                         </td>
                         <td>
