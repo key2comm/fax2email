@@ -6,7 +6,6 @@ use App\Enums\Role;
 use App\Models\FaxNumber;
 use App\Models\MailLog;
 use App\Models\User;
-use App\Support\Branding;
 use App\Support\MailSettings;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Mail\Events\MessageSending;
@@ -31,8 +30,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        config(['app.name' => Branding::name()]);
-
         Gate::define('manage-settings', fn (User $user) => $user->role === Role::Admin);
         // Sending needs an account with a number to send from.
         Gate::define('send-fax', fn (User $user) => $user->account_id !== null

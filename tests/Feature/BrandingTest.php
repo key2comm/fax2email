@@ -63,7 +63,8 @@ class BrandingTest extends TestCase
         $html = $this->actingAs($admin)->get('/dashboard')->getContent();
         $this->assertStringContainsString('--tblr-primary: #aa3300', $html);
         $this->assertStringContainsString('/branding/favicon?v=', $html);
-        $this->assertSame('Acme Fax', config('app.name'));
+        // Branding is for the website only: emails keep the server's app name.
+        $this->assertNotSame('Acme Fax', config('app.name'));
     }
 
     public function test_logos_are_public_but_only_once_uploaded()

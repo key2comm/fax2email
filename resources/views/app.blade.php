@@ -4,9 +4,9 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
-
         @php($brand = \App\Support\Branding::forPages())
+        <title inertia>{{ $brand['name'] }}</title>
+
         <link rel="icon" type="image/png" href="{{ $brand['favicon'] ?? '/favicon.ico' }}">
         @if ($brand['color'])
             {{-- Brand colour from Settings > Branding, applied to Tabler's primary colour. --}}

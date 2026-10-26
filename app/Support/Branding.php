@@ -4,14 +4,13 @@ namespace App\Support;
 
 use App\Models\Setting;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 use Throwable;
 
 /**
  * The app's name, logo, favicon and brand colour, set by Admins under
- * Settings > Branding. Uploaded images are decoded and re-saved as PNG, so
+ * Settings > Branding. They brand the website only; emails are not changed. Uploaded images are decoded and re-saved as PNG, so
  * what the portal serves is always a plain image, whatever was uploaded.
  */
 class Branding
@@ -93,10 +92,7 @@ class Branding
 
         Setting::write(self::KEY, ['name' => $values['name'] ?: null, 'color' => $values['color'] ?: null, 'assets' => $assets]);
         app()->forgetInstance('fax2email.branding');
-        config(['app.name' => self::name()]);
 
-        // Queue workers read the name once at start-up; have them restart after their current job.
-        Artisan::call('queue:restart');
     }
 
     public static function path(string $asset): string

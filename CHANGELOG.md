@@ -6,7 +6,7 @@ Update a server with `sudo fax2email-update`.
 ## Unreleased
 
 - **Branding** (Settings → Branding): your own app name, logo (with an optional dark-mode
-  version), favicon and brand colour, used in the portal, login page and emails.
+  version), favicon and brand colour for the website (emails are not changed).
 
 ## v0.1.2
 

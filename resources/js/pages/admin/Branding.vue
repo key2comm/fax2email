@@ -80,7 +80,7 @@ const save = () => {
                                 maxlength="40"
                             />
                             <InputError :message="form.errors.name" />
-                            <small class="form-hint">Shown in the menu bar, browser tabs and emails. Leave blank for "{{ defaultName }}".</small>
+                            <small class="form-hint">Shown in the menu bar, login page and browser tabs. Leave blank for "{{ defaultName }}".</small>
                         </div>
 
                         <div class="mb-4">
