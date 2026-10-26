@@ -6,6 +6,7 @@ use App\Models\Account;
 use App\Models\Fax;
 use App\Models\FaxNumber;
 use App\Models\User;
+use App\Support\Branding;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -42,6 +43,7 @@ class HandleInertiaRequests extends Middleware
         return array_merge(parent::share($request), [
             ...parent::share($request),
             'name' => config('app.name'),
+            'branding' => Branding::forPages(),
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
             ],

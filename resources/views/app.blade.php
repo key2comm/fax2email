@@ -6,6 +6,19 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        @php($brand = \App\Support\Branding::forPages())
+        <link rel="icon" type="image/png" href="{{ $brand['favicon'] ?? '/favicon.ico' }}">
+        @if ($brand['color'])
+            {{-- Brand colour from Settings > Branding, applied to Tabler's primary colour. --}}
+            <style>
+                :root, [data-bs-theme] {
+                    --tblr-primary: {{ $brand['color'] }};
+                    --tblr-primary-rgb: {{ implode(', ', \App\Support\Branding::rgb($brand['color'])) }};
+                    --tblr-primary-fg: {{ \App\Support\Branding::foreground($brand['color']) }};
+                }
+            </style>
+        @endif
+
         {{-- Apply the light/dark theme before the page paints; see resources/js/composables/useTheme.ts. --}}
         <script>
             (function () {

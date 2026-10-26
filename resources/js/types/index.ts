@@ -25,10 +25,19 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export interface Branding {
+    name: string;
+    color: string | null;
+    logo: string | null;
+    logo_dark: string | null;
+    favicon: string | null;
+}
+
 export interface SharedData {
     [key: string]: unknown;
     name: string;
     version: string;
+    branding: Branding;
     flash: { status: string | null };
     auth: Auth;
     ziggy: {

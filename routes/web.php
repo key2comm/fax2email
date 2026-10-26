@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\Admin\BrandingController;
 use App\Http\Controllers\Admin\FirewallController;
 use App\Http\Controllers\Admin\HttpsController;
 use App\Http\Controllers\Admin\MailLogController;
@@ -21,6 +22,9 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::redirect('/', '/dashboard')->name('home');
+
+// Logo and favicon: public, because the login page shows them.
+Route::get('branding/{asset}', [BrandingController::class, 'asset'])->whereIn('asset', ['logo', 'logo-dark', 'favicon'])->name('branding.asset');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function (Request $request) {
@@ -75,6 +79,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('admin/firewall/rules', [FirewallController::class, 'store'])->name('admin.firewall.rules.store');
     Route::delete('admin/firewall/rules/{rule}', [FirewallController::class, 'destroy'])->name('admin.firewall.rules.destroy');
     Route::put('admin/firewall/settings', [FirewallController::class, 'updateSettings'])->name('admin.firewall.settings.update');
+
+    Route::get('admin/branding', [BrandingController::class, 'show'])->name('admin.branding');
+    Route::post('admin/branding', [BrandingController::class, 'update'])->name('admin.branding.update');
 
     Route::get('admin/https', [HttpsController::class, 'show'])->name('admin.https');
     Route::post('admin/https/letsencrypt', [HttpsController::class, 'letsEncrypt'])->name('admin.https.letsencrypt');

@@ -16,6 +16,7 @@ import {
     IconLogout,
     IconMail,
     IconMoon,
+    IconPalette,
     IconPlugConnected,
     IconSend,
     IconShield,
@@ -60,6 +61,7 @@ const settingsMenu = computed<NavItem[]>(() =>
               { title: 'SIP trunks', href: '/admin/trunks', icon: IconPlugConnected },
               { title: 'Firewall', href: '/admin/firewall', icon: IconShield },
               { title: 'HTTPS', href: '/admin/https', icon: IconCertificate },
+              { title: 'Branding', href: '/admin/branding', icon: IconPalette },
           ]
         : [],
 );
