@@ -73,7 +73,9 @@ class FaxReceptionTest extends TestCase
         // A real fax from spandsp: 2-D G3, byte-aligned lines, least significant bit first.
         $spandsp = $convert('received-spandsp');
         $this->assertStringStartsWith('%PDF-1.4', $spandsp);
-        $this->assertStringContainsString('/Filter /CCITTFaxDecode /DecodeParms << /K 1 /EndOfLine true /EncodedByteAlign true', $spandsp);
+        $this->assertStringContainsString('/Filter /CCITTFaxDecode /DecodeParms << /K 1 /EndOfLine true /Columns 1728', $spandsp);
+        // Fill bits are not EncodedByteAlign; declaring it makes browsers' PDF viewers show a blank page.
+        $this->assertStringNotContainsString('/EncodedByteAlign', $spandsp);
         // 1728 x 1100 pixels at 204 x 196 dpi = 609.88 x 404.08 points.
         $this->assertStringContainsString('/MediaBox [0 0 609.8824 404.0816]', $spandsp);
 

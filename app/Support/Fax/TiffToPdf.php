@@ -143,8 +143,10 @@ class TiffToPdf
         // min-is-white (0) is standard for fax; min-is-black flips the colours.
         $minIsBlack = (int) $get(self::TAG_PHOTOMETRIC, 0) === 1;
         $params = match ($compression) {
-            // T.4 (Group 3): 1-D, or 2-D when bit 0 of T4Options is set; bit 2 = byte-aligned lines.
-            3 => sprintf('/K %d /EndOfLine true /EncodedByteAlign %s', $t4Options & 1 ? 1 : 0, $t4Options & 4 ? 'true' : 'false'),
+            // T.4 (Group 3): 1-D, or 2-D when bit 0 of T4Options is set. TIFF's fill bits (bit 2) pad
+            // before each EOL, which decoders skip anyway. They are not PDF's EncodedByteAlign: in 2-D
+            // a line starts one tag bit after the EOL, so strict viewers (pdf.js) render it blank.
+            3 => sprintf('/K %d /EndOfLine true', $t4Options & 1 ? 1 : 0),
             // T.6 (Group 4).
             4 => '/K -1',
             1 => '',
