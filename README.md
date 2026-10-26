@@ -179,6 +179,61 @@ rm /tmp/admin-pw   # the file holding the Admin password
 When it finishes, log in at `http://<portal address>` and set up the outgoing mail server
 under **Mail server → SMTP Settings**.
 
+## Firewall ports
+
+If the server sits behind an external firewall (a cloud security group, your provider's
+firewall, or a router), allow the following. The installer already opens these in the
+server's own firewall (firewalld or ufw).
+
+### Inbound (internet → server)
+
+**Always needed**
+
+| Port | Protocol | Allow from | Used for |
+|---|---|---|---|
+| 80 | TCP | Anywhere | The portal over HTTP, and Let's Encrypt certificate checks |
+| 443 | TCP | Anywhere | The portal over HTTPS |
+| 5060 | UDP | Your SIP providers' IPs | SIP calls from your providers |
+| 5060 | TCP | Your SIP providers' IPs | SIP calls from your providers |
+| 16384–32768 | UDP | Your SIP providers' media IPs, or anywhere | Fax media (RTP and T.38) |
+
+**Only if you use the feature**
+
+| Port | Protocol | Allow from | Needed when |
+|---|---|---|---|
+| 5061 | TCP | Your SIP providers' IPs | You have SIP trunks using TLS |
+| 25 | TCP | Anywhere | Email to fax is turned on (a fax domain is set) |
+| 22 | TCP | Your own IPs only | You manage the server over SSH |
+
+Everything else can stay closed.
+
+- Keep port **80** open even with HTTPS turned on: Let's Encrypt renewals are checked over it.
+- Providers often send fax media from different IPs than their SIP signalling. If they
+  publish their media ranges, restrict 16384–32768 to those; otherwise allow it from anywhere.
+- SIP is protected on the server as well: 5060/5061 only accept connections from the addresses
+  of your SIP trunks, even if the external firewall leaves them open to everyone.
+
+### Outbound (server → internet)
+
+| Port | Protocol | Used for |
+|---|---|---|
+| 53 | UDP and TCP | DNS (SPF/DKIM checks, trunk hostnames) |
+| 80, 443 | TCP | Operating system packages, GitHub (fax2email updates), Let's Encrypt |
+| 25, 465, 587 or 2525 | TCP | Sending email through your SMTP server (whichever port it uses) |
+| 5060, 5061 | UDP and TCP | SIP to your providers: registrations and sending faxes |
+| 16384–32768 | UDP | Fax media to your providers |
+| 123 | UDP | Time synchronisation (NTP) |
+
+### Never open
+
+| Port | Service |
+|---|---|
+| 5432 | PostgreSQL database |
+| 8021 | FreeSWITCH control port |
+| 8891 | OpenDKIM |
+
+These only listen on the server's local address.
+
 ## Updating a server
 
 ```bash
