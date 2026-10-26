@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\FirewallController;
+use App\Http\Controllers\Admin\HttpsController;
 use App\Http\Controllers\Admin\MailLogController;
 use App\Http\Controllers\Admin\MailSettingsController;
 use App\Http\Controllers\Admin\SipTrunkController;
@@ -74,6 +75,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('admin/firewall/rules', [FirewallController::class, 'store'])->name('admin.firewall.rules.store');
     Route::delete('admin/firewall/rules/{rule}', [FirewallController::class, 'destroy'])->name('admin.firewall.rules.destroy');
     Route::put('admin/firewall/settings', [FirewallController::class, 'updateSettings'])->name('admin.firewall.settings.update');
+
+    Route::get('admin/https', [HttpsController::class, 'show'])->name('admin.https');
+    Route::post('admin/https/letsencrypt', [HttpsController::class, 'letsEncrypt'])->name('admin.https.letsencrypt');
+    Route::post('admin/https/custom', [HttpsController::class, 'custom'])->name('admin.https.custom');
+    Route::put('admin/https', [HttpsController::class, 'update'])->name('admin.https.update');
+    Route::delete('admin/https', [HttpsController::class, 'disable'])->name('admin.https.disable');
 
     Route::resource('admin/trunks', SipTrunkController::class)->except('show')->parameters(['trunks' => 'trunk'])->names('admin.trunks');
 });

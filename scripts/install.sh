@@ -57,14 +57,14 @@ install_packages() {
         apt-get update -q
         apt-get install -y -q nginx postgresql postgresql-client ca-certificates curl rsync tar \
             php-fpm php-cli php-pgsql php-mbstring php-xml php-intl php-zip php-bcmath php-gd php-curl \
-            nftables fail2ban python3-systemd openssl ghostscript
+            nftables fail2ban python3-systemd openssl ghostscript certbot
     else
         # fail2ban comes from EPEL. Only the server, journal and SELinux parts are
         # installed; the firewalld and sendmail add-ons are not needed.
         dnf install -y -q epel-release
         dnf install -y -q nginx postgresql-server postgresql curl rsync tar policycoreutils-python-utils \
             php-fpm php-cli php-pgsql php-mbstring php-xml php-intl php-pecl-zip php-bcmath php-gd \
-            php-opcache php-process nftables fail2ban-server fail2ban-systemd fail2ban-selinux openssl ghostscript
+            php-opcache php-process nftables fail2ban-server fail2ban-systemd fail2ban-selinux openssl ghostscript certbot
     fi
 }
 
@@ -182,11 +182,12 @@ setup_app() {
 }
 
 configure_nginx() {
-    sed -e "s#__PHP_FPM_SOCKET__#$FPM_SOCKET#" -e "s#server_name _;#server_name $SERVER_NAME _;#" \
-        "$APP_DIR/deploy/nginx/fax2email.conf" > /etc/nginx/conf.d/fax2email.conf
+    # Plain HTTP for now; the HTTPS service (started below) switches to HTTPS if the
+    # portal's HTTPS settings say so, e.g. on a re-run.
+    install_system_files "$SRC_DIR"
+    write_nginx_config
     # Debian's stock site also claims default_server on port 80.
     rm -f /etc/nginx/sites-enabled/default
-    command -v restorecon >/dev/null && restorecon /etc/nginx/conf.d/fax2email.conf
     nginx -t
     systemctl enable nginx
     systemctl restart nginx
@@ -204,6 +205,9 @@ configure_services() {
     systemctl restart fax2email-freeswitch.service
     systemctl enable fail2ban fax2email-firewall.service
     systemctl enable --now fax2email-firewall.path fax2email-firewall.timer
+    systemctl enable --now fax2email-https.path fax2email-https.timer
+    # Restores HTTPS on a re-run (does nothing until HTTPS is turned on in the portal).
+    systemctl start fax2email-https.service || true
     if [[ -n "$FAX_EMAIL_DOMAIN" ]]; then
         systemctl enable fax2email-opendkim postfix fax2email-email-in.path
         systemctl restart fax2email-opendkim postfix
@@ -606,7 +610,8 @@ fax2email is installed.
   Update:   sudo fax2email-update
 
 Next steps:
-  1. Log in and set up the outgoing mail server under Mail server.${FAX_EMAIL_DOMAIN:+
+  1. Log in and set up the outgoing mail server under Settings > Mail server.
+  - Turn on HTTPS under Settings > HTTPS once the portal's domain points at this server.${FAX_EMAIL_DOMAIN:+
   - Email-to-fax: point the MX record for $FAX_EMAIL_DOMAIN at this server (port 25 is open).}
   2. While the GitHub repository is private, add UPDATE_GITHUB_TOKEN to .env
      so 'fax2email-update' can download new releases.

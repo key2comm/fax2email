@@ -6,7 +6,9 @@ import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     IconAddressBook,
+    IconAdjustments,
     IconBuilding,
+    IconCertificate,
     IconFileText,
     IconHash,
     IconLayoutDashboard,
@@ -48,14 +50,19 @@ const menu = computed<NavItem[]>(() => [
     ...(page.props.auth.can.manageNumbers ? [{ title: 'Fax numbers', href: '/numbers', icon: IconHash }] : []),
     ...(page.props.auth.can.manageAccounts ? [{ title: 'Accounts', href: '/accounts', icon: IconBuilding }] : []),
     ...(page.props.auth.can.manageUsers ? [{ title: 'Users', href: '/users', icon: IconUsers }] : []),
-    ...(page.props.auth.can.manageSettings
+]);
+
+// Server-wide settings, grouped in one dropdown to keep the menu short.
+const settingsMenu = computed<NavItem[]>(() =>
+    page.props.auth.can.manageSettings
         ? [
               { title: 'Mail server', href: '/admin/mail', icon: IconMail },
               { title: 'SIP trunks', href: '/admin/trunks', icon: IconPlugConnected },
               { title: 'Firewall', href: '/admin/firewall', icon: IconShield },
+              { title: 'HTTPS', href: '/admin/https', icon: IconCertificate },
           ]
-        : []),
-]);
+        : [],
+);
 
 const currentPath = computed(() => page.url.split('?')[0]);
 const isActive = (href: string) => currentPath.value === href || currentPath.value.startsWith(`${href}/`);
@@ -131,6 +138,30 @@ const isActive = (href: string) => currentPath.value === href || currentPath.val
                                     </span>
                                     <span class="nav-link-title">{{ item.title }}</span>
                                 </Link>
+                            </li>
+                            <li
+                                v-if="settingsMenu.length"
+                                class="nav-item dropdown"
+                                :class="{ active: settingsMenu.some((item) => isActive(item.href)) }"
+                            >
+                                <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" role="button" aria-expanded="false">
+                                    <span class="nav-link-icon d-md-none d-lg-inline-block">
+                                        <IconAdjustments class="icon" />
+                                    </span>
+                                    <span class="nav-link-title">Settings</span>
+                                </a>
+                                <div class="dropdown-menu">
+                                    <Link
+                                        v-for="item in settingsMenu"
+                                        :key="item.href"
+                                        :href="item.href"
+                                        class="dropdown-item"
+                                        :class="{ active: isActive(item.href) }"
+                                    >
+                                        <component :is="item.icon" class="icon dropdown-item-icon" />
+                                        {{ item.title }}
+                                    </Link>
+                                </div>
                             </li>
                         </ul>
                     </div>

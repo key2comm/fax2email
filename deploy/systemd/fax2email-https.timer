@@ -1,0 +1,10 @@
+[Unit]
+Description=Check the fax2email HTTPS certificate daily and renew it when due
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

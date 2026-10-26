@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply fax2email HTTPS settings as soon as they change in the portal
+
+[Path]
+PathChanged=/var/www/html/fax2email/storage/app/https/request
+Unit=fax2email-https.service
+
+[Install]
+WantedBy=multi-user.target

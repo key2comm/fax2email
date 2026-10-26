@@ -1,0 +1,7 @@
+[Unit]
+Description=Apply fax2email HTTPS settings (certificate and Nginx)
+After=network-online.target nginx.service postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/fax2email-https-apply

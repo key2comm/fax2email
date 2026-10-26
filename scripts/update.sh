@@ -23,6 +23,7 @@ source "$LIB/lib.sh"
 
 # Root-owned files outside the app directory that an update replaces.
 SYSTEM_PATHS=(usr/local/lib/fax2email usr/local/sbin/fax2email-update usr/local/sbin/fax2email-firewall-apply
+    usr/local/sbin/fax2email-https-apply etc/nginx/conf.d/fax2email.conf
     etc/fail2ban/action.d/fax2email.conf etc/fail2ban/filter.d/fax2email-portal.conf
     etc/fail2ban/filter.d/fax2email-sip.conf)
 
@@ -61,6 +62,7 @@ finish_deploy() {
     artisan queue:restart
     systemctl restart fax2email-queue.service fax2email-fax-events.service || true
     systemctl start fax2email-firewall.service || true
+    systemctl start fax2email-https.service || true
     # Restarting FreeSWITCH drops calls in progress, so only do it when it changed.
     if [[ "$FREESWITCH_CONFIG_CHANGED" == 1 || "${FREESWITCH_REBUILT:-0}" == 1 ]]; then
         systemctl restart fax2email-freeswitch.service || true

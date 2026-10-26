@@ -45,6 +45,63 @@ fix_permissions() {
 }
 
 SYSTEM_LIB=/usr/local/lib/fax2email
+NGINX_SITE=/etc/nginx/conf.d/fax2email.conf
+
+php_fpm_socket() {
+    local socket
+    for socket in /run/php-fpm/www.sock /run/php/php*-fpm.sock; do
+        [[ -S "$socket" || -e "$socket" ]] && { echo "$socket"; return; }
+    done
+    # Not running yet: the distro's default path.
+    [[ -d /etc/php-fpm.d ]] && echo /run/php-fpm/www.sock || echo "/run/php/php$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')-fpm.sock"
+}
+
+# Write the portal's Nginx site to $NGINX_SITE from the root-owned templates.
+#   write_nginx_config                                    HTTP only
+#   write_nginx_config <domain> <cert> <key> <redirect>   HTTP and HTTPS (redirect: 1 = send HTTP to HTTPS)
+# Never built from $APP_DIR, so the website cannot inject Nginx settings.
+write_nginx_config() {
+    local domain="${1:-}" cert="${2:-}" key="${3:-}" redirect="${4:-0}" socket app
+    socket="$(php_fpm_socket)"
+    app="$(sed "s#__PHP_FPM_SOCKET__#$socket#" "$SYSTEM_LIB/nginx/app.conf")"
+    {
+        echo "# Written by fax2email; changes are overwritten. Use the portal (Settings > HTTPS) instead."
+        echo "server {"
+        echo "    listen 80 default_server;"
+        echo "    listen [::]:80 default_server;"
+        echo "    server_name ${domain:+$domain }_;"
+        if [[ -n "$domain" && "$redirect" == 1 ]]; then
+            echo "    # Let's Encrypt renewals are checked over plain HTTP."
+            echo "    location ^~ /.well-known/acme-challenge/ {"
+            echo "        root $APP_DIR/public;"
+            echo "    }"
+            echo "    location / {"
+            echo "        return 301 https://$domain\$request_uri;"
+            echo "    }"
+        else
+            echo "${app//__FASTCGI_HTTPS__/}"
+        fi
+        echo "}"
+        if [[ -n "$domain" ]]; then
+            echo
+            echo "server {"
+            echo "    listen 443 ssl default_server;"
+            echo "    listen [::]:443 ssl default_server;"
+            echo "    http2 on;"
+            echo "    server_name $domain _;"
+            echo "    ssl_certificate $cert;"
+            echo "    ssl_certificate_key $key;"
+            echo "    ssl_protocols TLSv1.2 TLSv1.3;"
+            echo "    ssl_prefer_server_ciphers off;"
+            echo "    ssl_session_cache shared:fax2email:10m;"
+            echo "    ssl_session_timeout 1d;"
+            echo "${app//__FASTCGI_HTTPS__/fastcgi_param HTTPS on;}"
+            echo "}"
+        fi
+    } > "$NGINX_SITE"
+    command -v restorecon >/dev/null && restorecon "$NGINX_SITE"
+    return 0
+}
 
 # Install the scripts and config that run as root. They are copied from a
 # root-owned release tree ($1), never from $APP_DIR, which www-data can write:
@@ -55,6 +112,9 @@ install_system_files() {
     install -m 644 "$src/scripts/lib.sh" "$src/scripts/set-env.php" "$src/deploy/nftables/fax2email.nft" "$SYSTEM_LIB/"
     install -m 755 "$src/scripts/update.sh" /usr/local/sbin/fax2email-update
     install -m 755 "$src/scripts/firewall-apply.sh" /usr/local/sbin/fax2email-firewall-apply
+    install -m 755 "$src/scripts/https-apply.sh" /usr/local/sbin/fax2email-https-apply
+    install -d -m 755 "$SYSTEM_LIB/nginx"
+    install -m 644 "$src/deploy/nginx/app.conf" "$SYSTEM_LIB/nginx/"
     # Rocky's sudo does not search /usr/local, so make the update command findable there too.
     [[ -d /usr/sbin && ! -e /usr/sbin/fax2email-update ]] && ln -s /usr/local/sbin/fax2email-update /usr/sbin/fax2email-update
     # Older installs linked this to a script inside $APP_DIR.
