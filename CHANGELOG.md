@@ -3,6 +3,11 @@
 All notable changes to fax2email. Versions follow [semantic versioning](https://semver.org).
 Update a server with `sudo fax2email-update`.
 
+## v0.1.7
+
+- Fixed (Rocky Linux): sending a fax from the portal with a larger PDF failed with a blank page,
+  because Nginx could not save the upload to its temporary folder.
+
 ## v0.1.6
 
 - Fixed: with "Send HTTP visitors to HTTPS" on, FreeSWITCH could not load SIP trunks or the fax

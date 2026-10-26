@@ -95,6 +95,7 @@ configure_web_user() {
     for dir in /var/lib/php/session /var/lib/php/wsdlcache /var/lib/php/opcache; do
         [[ -d "$dir" ]] && chgrp -R "$WEB_USER" "$dir"
     done
+    fix_nginx_dirs
     return 0
 }
 

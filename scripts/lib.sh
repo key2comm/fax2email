@@ -44,6 +44,14 @@ fix_permissions() {
     if command -v restorecon >/dev/null; then restorecon -R "$APP_DIR"; fi
 }
 
+# Rocky's Nginx package keeps request bodies (e.g. PDF uploads) in /var/lib/nginx,
+# owned by its own nginx user. We run Nginx as www-data, so hand that over too;
+# a package upgrade can reset it, so updates call this again.
+fix_nginx_dirs() {
+    [[ -d /var/lib/nginx ]] && id nginx >/dev/null 2>&1 || return 0
+    chown -R "$WEB_USER:$WEB_USER" /var/lib/nginx
+}
+
 SYSTEM_LIB=/usr/local/lib/fax2email
 NGINX_SITE=/etc/nginx/conf.d/fax2email.conf
 

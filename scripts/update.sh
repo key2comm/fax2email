@@ -176,6 +176,8 @@ main() {
         [[ "$(/usr/local/bin/freeswitch -version 2>/dev/null)" != "$before" ]] && FREESWITCH_REBUILT=1
     fi
     fix_permissions
+    # Older lib.sh copies (before v0.1.7) don't have this yet.
+    declare -F fix_nginx_dirs >/dev/null && fix_nginx_dirs
 
     step "Running database migrations"
     MIGRATING=1
