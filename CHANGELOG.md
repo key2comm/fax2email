@@ -3,6 +3,15 @@
 All notable changes to fax2email. Versions follow [semantic versioning](https://semver.org).
 Update a server with `sudo fax2email-update`.
 
+## v0.1.5
+
+- **Inbound MX** (Settings → Mail server): the DNS records email-to-fax needs, filled in with
+  your domain and this server's address, advice on subdomains vs whole domains, and a
+  **Check DNS** button that tests the MX records, where they point, and the mail service.
+- **HTTPS auto-renew:** Let's Encrypt certificates renew automatically every 30 days (or 45 or
+  60), automatic renewal can be turned off, and **Renew now** replaces the certificate at once.
+- Fixed: a failed Let's Encrypt request could stop with "line 98" instead of the real reason.
+
 ## v0.1.4
 
 - Fixed: the installer failed on Rocky Linux with SELinux enabled ("Usage: setsebool").

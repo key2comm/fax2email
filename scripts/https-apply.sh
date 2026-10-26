@@ -95,7 +95,8 @@ case "$mode" in
         if [[ ${#renewal[@]} -eq 0 ]]; then
             : # Auto-renew is off and the certificate is current: nothing to fetch.
         elif ! certbot "${args[@]}" >"$WORK/certbot.log" 2>&1; then
-            detail="$(grep -E 'Detail:|Error|error:' "$WORK/certbot.log" | tail -n 3 | tr '\n' ' ' | sed 's/  */ /g')"
+            # No match is fine here: the message just has less detail.
+            detail="$(grep -E 'Detail:|Error|error:' "$WORK/certbot.log" | tail -n 3 | tr '\n' ' ' | sed 's/  */ /g' || true)"
             still=""
             grep -q "listen 443" "$NGINX_SITE" 2>/dev/null && still=" The current certificate is still in use."
             fail "Let's Encrypt could not issue a certificate for $domain. ${detail:-See /var/log/letsencrypt/letsencrypt.log.} Check that $domain points at this server and that port 80 is reachable from the internet.$still"

@@ -102,8 +102,21 @@ class MxCheck
             ? 'These mail hosts have no address: '.implode(', ', $unresolved).'.'
             : 'Every mail host has an address.');
 
+        $private = null;
+        if (! $pointsHere) {
+            foreach ($mx as $record) {
+                if ($ips = array_intersect($this->resolveHost($record['host']), $this->serverIps(includePrivate: true))) {
+                    $private = ['host' => $record['host'], 'ips' => array_values($ips)];
+                    break;
+                }
+            }
+        }
+
         if ($pointsHere) {
             $add('server', 'Points at this server', 'ok', "{$pointsHere['host']} resolves to ".implode(', ', $pointsHere['ips']).', which is this server.');
+        } elseif ($private) {
+            $add('server', 'Points at this server', 'warn', "{$private['host']} resolves to ".implode(', ', $private['ips'])
+                .", this server's private address. Mail from the internet cannot reach a private address: point the A record at the public IP instead (the one that forwards to this server).");
         } else {
             $add('server', 'Points at this server', 'warn', 'The mail hosts resolve to '.implode(', ', array_unique(array_merge(...array_map(fn ($r) => $this->resolveHost($r['host']), $mx))))
                 .', but this server\'s addresses are '.($serverIps ? implode(', ', $serverIps) : 'unknown')
@@ -188,11 +201,12 @@ class MxCheck
     }
 
     /**
-     * Public addresses on this server's network interfaces (private ranges are left out).
+     * Addresses on this server's network interfaces: public ones only, unless
+     * $includePrivate is set (loopback and link-local are always left out).
      *
      * @return list<string>
      */
-    private function serverIps(): array
+    private function serverIps(bool $includePrivate = false): array
     {
         if ($this->serverIps !== null) {
             return $this->serverIps;
@@ -202,12 +216,13 @@ class MxCheck
         foreach (function_exists('net_get_interfaces') ? (net_get_interfaces() ?: []) : [] as $interface) {
             foreach ($interface['unicast'] ?? [] as $address) {
                 $ip = $address['address'] ?? null;
-                if ($ip && filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE)) {
+                $flags = $includePrivate ? FILTER_FLAG_NO_RES_RANGE : FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE;
+                if ($ip && filter_var($ip, FILTER_VALIDATE_IP, $flags)) {
                     $ips[] = $ip;
                 }
             }
         }
 
-        return $this->serverIps = array_values(array_unique($ips));
+        return array_values(array_unique($ips));
     }
 }
