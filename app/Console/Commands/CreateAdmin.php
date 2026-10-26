@@ -17,12 +17,17 @@ class CreateAdmin extends Command
                             {--name= : The admin\'s full name}
                             {--email= : The admin\'s email address}
                             {--password-stdin : Read the password from standard input instead of prompting}
-                            {--skip-if-exists : Do nothing if an Admin already exists (lets the installer be re-run)}';
+                            {--skip-if-exists : Do nothing if an Admin already exists (lets the installer be re-run)}
+                            {--check : Only report whether an Admin exists (exit code 0 if one does)}';
 
     protected $description = 'Create an Admin user (used by the installer to set up the first login)';
 
     public function handle(): int
     {
+        if ($this->option('check')) {
+            return User::where('role', Role::Admin)->exists() ? self::SUCCESS : self::FAILURE;
+        }
+
         if ($this->option('skip-if-exists') && User::where('role', Role::Admin)->exists()) {
             $this->components->info('An Admin already exists. Skipping.');
 

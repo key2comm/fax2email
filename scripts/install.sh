@@ -382,6 +382,13 @@ EOF
 }
 
 create_admin() {
+    # Re-runs keep the existing Admin; check first so nothing needs a terminal.
+    if artisan fax2email:create-admin --check </dev/null; then
+        echo "    An Admin already exists."
+        return
+    fi
+    [[ $UNATTENDED == 0 || -n "$ADMIN_PASSWORD_FILE" ]] || die "There is no Admin yet: pass --admin-name, --admin-email and --admin-password-file."
+
     local args=(--skip-if-exists)
     [[ -n "$ADMIN_NAME" ]] && args+=(--name "$ADMIN_NAME")
     [[ -n "$ADMIN_EMAIL" ]] && args+=(--email "$ADMIN_EMAIL")
