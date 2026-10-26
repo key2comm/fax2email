@@ -3,7 +3,7 @@
 All notable changes to fax2email. Versions follow [semantic versioning](https://semver.org).
 Update a server with `sudo fax2email-update`.
 
-## Unreleased
+## v0.1.3
 
 - **Branding** (Settings → Branding): your own app name, logo (with an optional dark-mode
   version), favicon and brand colour for the website (emails are not changed).
