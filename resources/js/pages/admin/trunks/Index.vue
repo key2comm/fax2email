@@ -119,6 +119,11 @@ const destroy = (trunk: TrunkRow) => {
                     </tbody>
                 </table>
             </div>
+
+            <div v-if="trunks.length > 0" class="card-footer small text-secondary">
+                Trunk status is checked every 60 seconds, so a new or changed trunk can show as Unknown for a minute or two. Reload this page to see
+                the latest status.
+            </div>
         </div>
     </AppLayout>
 </template>
