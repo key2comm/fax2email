@@ -29,6 +29,15 @@ class User extends Authenticatable
     ];
 
     /**
+     * Times are shown in UTC until the user picks a time zone.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'timezone' => 'UTC',
+    ];
+
+    /**
      * The attributes that should be hidden for serialization.
      *
      * @var list<string>
