@@ -26,8 +26,11 @@ if git rev-parse "v$version" >/dev/null 2>&1; then
 fi
 
 echo "$version" > VERSION
-git add VERSION
-git commit -m "Release v$version"
+# The first release may already have this VERSION; only commit a real change.
+if ! git diff --quiet VERSION; then
+    git add VERSION
+    git commit -m "Release v$version"
+fi
 git tag -a "v$version" -m "v$version"
 git push origin HEAD "v$version"
 
