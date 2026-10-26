@@ -8,6 +8,7 @@ use App\Support\Https;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,6 +26,8 @@ class HttpsController extends Controller
         return Inertia::render('admin/Https', [
             'settings' => [...$settings, 'domain' => $domain, 'email' => $settings['email'] ?? $request->user()->email],
             'status' => Https::status(),
+            'nextRenewal' => Https::nextRenewal(),
+            'renewDays' => Https::RENEW_DAYS,
             // Where the domain points now, so admins can spot DNS that isn't set up yet.
             'resolvesTo' => $domain ? app(HostResolver::class)->resolve($domain) : [],
             'serverAddress' => $request->server('SERVER_ADDR'),
@@ -96,10 +99,27 @@ class HttpsController extends Controller
     {
         Gate::authorize('manage-settings');
 
-        $validated = $request->validate(['redirect' => ['required', 'boolean']]);
-        Https::save([...Https::settings(), 'redirect' => (bool) $validated['redirect']]);
+        $validated = $request->validate([
+            'redirect' => ['sometimes', 'boolean'],
+            'auto_renew' => ['sometimes', 'boolean'],
+            'renew_days' => ['sometimes', 'integer', Rule::in(Https::RENEW_DAYS)],
+        ]);
+        Https::save(array_map(fn ($v) => is_bool($v) || $v === '0' || $v === '1' ? (bool) $v : (int) $v, $validated));
 
-        return back()->with('status', $validated['redirect'] ? 'HTTP visitors will be sent to HTTPS.' : 'The portal is reachable over both HTTP and HTTPS.');
+        return back()->with('status', 'HTTPS settings saved.');
+    }
+
+    /**
+     * Replace the Let's Encrypt certificate now, whatever its age.
+     */
+    public function renew(): RedirectResponse
+    {
+        Gate::authorize('manage-settings');
+        abort_unless(Https::settings()['mode'] === 'letsencrypt', 404);
+
+        Https::save(['force_renew' => true]);
+
+        return back()->with('status', 'Renewing the certificate now.');
     }
 
     public function disable(): RedirectResponse

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\FaxEmail;
 use App\Models\MailLog;
+use App\Support\MxCheck;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -13,6 +15,33 @@ use Inertia\Response;
 
 class MailLogController extends Controller
 {
+    /**
+     * The DNS records email-to-fax needs, and a check that they work.
+     */
+    public function inboundMx(Request $request, MxCheck $check): Response
+    {
+        Gate::authorize('manage-settings');
+
+        $domain = config('fax2email.mail.domain') ?: null;
+        $portalHost = parse_url((string) config('app.url'), PHP_URL_HOST) ?: null;
+
+        return Inertia::render('admin/InboundMx', [
+            'domain' => $domain,
+            'setup' => $domain ? $check->suggestedRecords($domain, $portalHost) : null,
+            'results' => $request->session()->get('mx_check'),
+        ]);
+    }
+
+    public function checkMx(MxCheck $check): RedirectResponse
+    {
+        Gate::authorize('manage-settings');
+
+        $domain = config('fax2email.mail.domain');
+        abort_unless($domain, 404);
+
+        return back()->with('mx_check', ['checked_at' => now()->toIso8601String(), 'items' => $check->run($domain)]);
+    }
+
     public function emailToFax(): Response
     {
         Gate::authorize('manage-settings');

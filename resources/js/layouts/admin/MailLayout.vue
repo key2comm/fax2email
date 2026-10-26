@@ -6,6 +6,7 @@ import { computed } from 'vue';
 const tabs = [
     { title: 'SMTP Settings', href: '/admin/mail' },
     { title: 'Mail log', href: '/admin/mail/log' },
+    { title: 'Inbound MX', href: '/admin/mail/inbound-mx' },
     { title: 'Email to fax', href: '/admin/mail/email-to-fax' },
 ];
 

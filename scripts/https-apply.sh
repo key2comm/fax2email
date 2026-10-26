@@ -28,8 +28,8 @@ touch "$WORK/started"
 trap 'rm -rf "$WORK"' EXIT
 
 report() {
-    # report <state> <message> [domain issuer expires]
-    artisan fax2email:https status --state="$1" ${2:+--message="$2"} ${3:+--domain="$3"} ${4:+--issuer="$4"} ${5:+--expires="$5"} >/dev/null || true
+    # report <state> <message> [domain issuer expires issued]
+    artisan fax2email:https status --state="$1" ${2:+--message="$2"} ${3:+--domain="$3"} ${4:+--issuer="$4"} ${5:+--expires="$5"} ${6:+--issued="$6"} >/dev/null || true
 }
 fail() {
     report error "$1"
@@ -46,13 +46,16 @@ if [[ -f "$STATE_DIR/https.conf" ]]; then
 fi
 
 # --- Read and validate the desired settings -----------------------------------
-mode=none domain="" email="" redirect=0
+mode=none domain="" email="" redirect=0 auto_renew=1 renew_days=30 force_renew=0
 while read -r key value; do
     case "$key" in
         mode) [[ "$value" =~ ^(none|letsencrypt|custom)$ ]] && mode="$value" ;;
         domain) [[ "$value" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z][a-z0-9-]*[a-z0-9]$ && ${#value} -le 253 ]] && domain="$value" ;;
         email) [[ "$value" =~ ^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$ ]] && email="$value" ;;
         redirect) [[ "$value" == 1 ]] && redirect=1 ;;
+        auto_renew) [[ "$value" == 0 ]] && auto_renew=0 ;;
+        renew_days) [[ "$value" =~ ^(30|45|60)$ ]] && renew_days="$value" ;;
+        force_renew) [[ "$value" == 1 ]] && force_renew=1 ;;
     esac
 done < <(artisan fax2email:https export)
 
@@ -71,11 +74,27 @@ case "$mode" in
             certbot delete --cert-name "$LE_NAME" --non-interactive >/dev/null 2>&1 || true
         fi
 
+        # When to renew: "Renew now", or automatically once the certificate is renew_days old.
+        # With auto-renew off an existing certificate is left alone (only a missing one is fetched).
+        live="/etc/letsencrypt/live/$LE_NAME/fullchain.pem"
+        renewal=(--keep-until-expiring)
+        if [[ -f "$live" && "$(cat "$STATE_DIR/https-le-domain" 2>/dev/null)" == "$domain" ]]; then
+            issued="$(date -d "$(openssl x509 -in "$live" -noout -startdate | cut -d= -f2)" +%s)"
+            age_days=$(( ($(date +%s) - issued) / 86400 ))
+            if [[ "$force_renew" == 1 ]] || [[ "$auto_renew" == 1 && "$age_days" -ge "$renew_days" ]]; then
+                renewal=(--force-renewal)
+            elif [[ "$auto_renew" == 0 ]]; then
+                renewal=()
+            fi
+        fi
+
         args=(certonly --webroot -w "$APP_DIR/public" --cert-name "$LE_NAME" -d "$domain" -m "$email"
-              --agree-tos --non-interactive --keep-until-expiring --no-eff-email)
+              --agree-tos --non-interactive --no-eff-email "${renewal[@]}")
         [[ -n "$ACME_SERVER" ]] && args+=(--server "$ACME_SERVER")
         [[ -n "$ACME_NO_VERIFY" ]] && args+=(--no-verify-ssl)
-        if ! certbot "${args[@]}" >"$WORK/certbot.log" 2>&1; then
+        if [[ ${#renewal[@]} -eq 0 ]]; then
+            : # Auto-renew is off and the certificate is current: nothing to fetch.
+        elif ! certbot "${args[@]}" >"$WORK/certbot.log" 2>&1; then
             detail="$(grep -E 'Detail:|Error|error:' "$WORK/certbot.log" | tail -n 3 | tr '\n' ' ' | sed 's/  */ /g')"
             still=""
             grep -q "listen 443" "$NGINX_SITE" 2>/dev/null && still=" The current certificate is still in use."
@@ -141,8 +160,9 @@ if [[ "$mode" == none ]]; then
     report off ""
 else
     expires="$(date -u -d "$(openssl x509 -in "$cert" -noout -enddate | cut -d= -f2)" +%Y-%m-%dT%H:%M:%SZ)"
+    issued="$(date -u -d "$(openssl x509 -in "$cert" -noout -startdate | cut -d= -f2)" +%Y-%m-%dT%H:%M:%SZ)"
     issuer="$(openssl x509 -in "$cert" -noout -issuer -nameopt multiline | sed -n 's/^ *organizationName *= *//p;s/^ *commonName *= *//p' | head -n1)"
-    report active "" "$domain" "${issuer:-Unknown}" "$expires"
+    report active "" "$domain" "${issuer:-Unknown}" "$expires" "$issued"
 fi
 
 # A change saved while this run was busy only reaches systemd as a start request

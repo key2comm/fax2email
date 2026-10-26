@@ -71,7 +71,7 @@ class HttpsTest extends TestCase
         $this->actingAs($admin)->post('/admin/https/letsencrypt', ['domain' => 'Portal.Example.com', 'email' => 'admin@example.com', 'agree' => true, 'redirect' => true])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame("mode letsencrypt\ndomain portal.example.com\nemail admin@example.com\nredirect 1\n", Https::export());
+        $this->assertSame("mode letsencrypt\ndomain portal.example.com\nemail admin@example.com\nredirect 1\nauto_renew 1\nrenew_days 30\nforce_renew 0\n", Https::export());
         $this->assertSame('pending', Https::status()['state']);
         $this->assertFileExists(Https::dir().'/request');
     }
@@ -121,5 +121,26 @@ class HttpsTest extends TestCase
 
         $this->assertStringStartsWith("mode none\n", Https::export());
         $this->assertSame('off', Https::status()['state']);
+    }
+
+    public function test_auto_renew_can_be_changed_and_renew_now_forces_a_renewal()
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin)->post('/admin/https/letsencrypt', ['domain' => 'portal.example.com', 'email' => 'admin@example.com', 'agree' => true, 'redirect' => true]);
+
+        $this->actingAs($admin)->put('/admin/https', ['auto_renew' => false, 'renew_days' => 45])->assertSessionHasNoErrors();
+        $this->assertStringContainsString("auto_renew 0\nrenew_days 45\n", Https::export());
+        $this->actingAs($admin)->put('/admin/https', ['renew_days' => 7])->assertSessionHasErrors('renew_days');
+
+        $this->actingAs($admin)->post('/admin/https/renew')->assertRedirect();
+        $this->assertStringContainsString("force_renew 1\n", Https::export());
+
+        // Once the service reports the new certificate, the request is cleared and the next renewal date is known.
+        $this->artisan('fax2email:https', ['action' => 'status', '--state' => 'active', '--domain' => 'portal.example.com', '--issued' => '2026-10-26T00:00:00Z', '--expires' => '2027-01-24T00:00:00Z']);
+        $this->assertStringContainsString("force_renew 0\n", Https::export());
+        $this->assertNull(Https::nextRenewal(), 'Auto-renew is off');
+
+        $this->actingAs($admin)->put('/admin/https', ['auto_renew' => true, 'renew_days' => 30]);
+        $this->assertSame('2026-11-25', substr(Https::nextRenewal(), 0, 10));
     }
 }

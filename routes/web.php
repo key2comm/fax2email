@@ -71,6 +71,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('admin/mail/test', [MailSettingsController::class, 'test'])->name('admin.mail.test');
     Route::get('admin/mail/log', [MailLogController::class, 'index'])->name('admin.mail.log');
     Route::get('admin/mail/email-to-fax', [MailLogController::class, 'emailToFax'])->name('admin.mail.email-to-fax');
+    Route::get('admin/mail/inbound-mx', [MailLogController::class, 'inboundMx'])->name('admin.mail.inbound-mx');
+    Route::post('admin/mail/inbound-mx/check', [MailLogController::class, 'checkMx'])->name('admin.mail.inbound-mx.check');
 
     Route::get('admin/firewall', [FirewallController::class, 'blocked'])->name('admin.firewall.blocked');
     Route::get('admin/firewall/whitelist', [FirewallController::class, 'whitelist'])->name('admin.firewall.whitelist');
@@ -87,6 +89,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('admin/https/letsencrypt', [HttpsController::class, 'letsEncrypt'])->name('admin.https.letsencrypt');
     Route::post('admin/https/custom', [HttpsController::class, 'custom'])->name('admin.https.custom');
     Route::put('admin/https', [HttpsController::class, 'update'])->name('admin.https.update');
+    Route::post('admin/https/renew', [HttpsController::class, 'renew'])->name('admin.https.renew');
     Route::delete('admin/https', [HttpsController::class, 'disable'])->name('admin.https.disable');
 
     Route::resource('admin/trunks', SipTrunkController::class)->except('show')->parameters(['trunks' => 'trunk'])->names('admin.trunks');

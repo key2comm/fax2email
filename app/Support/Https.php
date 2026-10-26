@@ -22,35 +22,53 @@ class Https
 
     public const MODES = ['none', 'letsencrypt', 'custom'];
 
+    /** How often an automatically renewed Let's Encrypt certificate is replaced, in days. */
+    public const RENEW_DAYS = [30, 45, 60];
+
     public static function dir(): string
     {
         return storage_path('app/https');
     }
 
     /**
-     * @return array{mode: string, domain: ?string, email: ?string, redirect: bool}
+     * @return array{mode: string, domain: ?string, email: ?string, redirect: bool, auto_renew: bool, renew_days: int, force_renew: bool}
      */
     public static function settings(): array
     {
-        return [...['mode' => 'none', 'domain' => null, 'email' => null, 'redirect' => true], ...self::read(self::KEY)];
+        return [...['mode' => 'none', 'domain' => null, 'email' => null, 'redirect' => true, 'auto_renew' => true, 'renew_days' => 30, 'force_renew' => false], ...self::read(self::KEY)];
     }
 
     /**
-     * @param  array{mode: string, domain: ?string, email: ?string, redirect: bool}  $settings
+     * @param  array<string, mixed>  $settings
      */
     public static function save(array $settings): void
     {
+        $settings = [...self::settings(), ...$settings];
         Setting::write(self::KEY, $settings);
         self::recordStatus(['state' => $settings['mode'] === 'none' ? 'off' : 'pending', 'message' => null]);
         self::requestApply();
     }
 
     /**
-     * @return array{state: string, message: ?string, domain: ?string, issuer: ?string, expires_at: ?string, checked_at: ?string}
+     * @return array{state: string, message: ?string, domain: ?string, issuer: ?string, issued_at: ?string, expires_at: ?string, checked_at: ?string}
      */
     public static function status(): array
     {
-        return [...['state' => 'off', 'message' => null, 'domain' => null, 'issuer' => null, 'expires_at' => null, 'checked_at' => null], ...self::read(self::STATUS_KEY)];
+        return [...['state' => 'off', 'message' => null, 'domain' => null, 'issuer' => null, 'issued_at' => null, 'expires_at' => null, 'checked_at' => null], ...self::read(self::STATUS_KEY)];
+    }
+
+    /**
+     * When the certificate will next be renewed, or null if it won't be automatically.
+     */
+    public static function nextRenewal(): ?string
+    {
+        $s = self::settings();
+        $issued = self::status()['issued_at'];
+        if ($s['mode'] !== 'letsencrypt' || ! $s['auto_renew'] || ! $issued) {
+            return null;
+        }
+
+        return Carbon::parse($issued)->addDays($s['renew_days'])->toIso8601String();
     }
 
     /**
@@ -81,6 +99,9 @@ class Https
             'domain '.($s['domain'] ?? ''),
             'email '.($s['email'] ?? ''),
             'redirect '.($s['redirect'] ? 1 : 0),
+            'auto_renew '.($s['auto_renew'] ? 1 : 0),
+            'renew_days '.(in_array((int) $s['renew_days'], self::RENEW_DAYS, true) ? (int) $s['renew_days'] : 30),
+            'force_renew '.($s['force_renew'] ? 1 : 0),
         ])."\n";
     }
 

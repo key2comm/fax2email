@@ -11,15 +11,26 @@ interface Status {
     message: string | null;
     domain: string | null;
     issuer: string | null;
+    issued_at: string | null;
     expires_at: string | null;
     checked_at: string | null;
 }
 
 const props = defineProps<{
-    settings: { mode: 'none' | 'letsencrypt' | 'custom'; domain: string | null; email: string | null; redirect: boolean };
+    settings: {
+        mode: 'none' | 'letsencrypt' | 'custom';
+        domain: string | null;
+        email: string | null;
+        redirect: boolean;
+        auto_renew: boolean;
+        renew_days: number;
+        force_renew: boolean;
+    };
     status: Status;
     resolvesTo: string[];
     serverAddress: string | null;
+    nextRenewal: string | null;
+    renewDays: number[];
 }>();
 
 const { formatDateTime } = useDateTime();
@@ -45,6 +56,13 @@ const submitLetsEncrypt = () => letsEncrypt.post(route('admin.https.letsencrypt'
 const submitCustom = () =>
     custom.post(route('admin.https.custom'), { preserveScroll: true, onSuccess: () => custom.reset('certificate', 'private_key') });
 const setRedirect = (redirect: boolean) => router.put(route('admin.https.update'), { redirect }, { preserveScroll: true });
+const setRenewal = (values: { auto_renew?: boolean; renew_days?: number }) =>
+    router.put(route('admin.https.update'), values, { preserveScroll: true });
+const renewNow = () => {
+    if (confirm('Get a new certificate now? The current one keeps working until the new one is in place.')) {
+        router.post(route('admin.https.renew'), {}, { preserveScroll: true });
+    }
+};
 const turnOff = () => {
     if (confirm('Turn off HTTPS? The portal will be served over plain HTTP, so passwords will no longer be encrypted in transit.')) {
         router.delete(route('admin.https.disable'), { preserveScroll: true });
@@ -95,7 +113,10 @@ onBeforeUnmount(() => clearInterval(poll));
                                 </h3>
                                 <div v-if="status.state === 'active'" class="text-secondary">
                                     Certificate from {{ status.issuer }}, valid until {{ formatDateTime(status.expires_at) }}.
-                                    <template v-if="settings.mode === 'letsencrypt'">It renews automatically.</template>
+                                    <template v-if="settings.mode === 'letsencrypt' && nextRenewal">
+                                        Next automatic renewal: {{ formatDateTime(nextRenewal) }}.
+                                    </template>
+                                    <template v-else-if="settings.mode === 'letsencrypt'">Automatic renewal is off.</template>
                                     <template v-else>Upload a new certificate before then.</template>
                                 </div>
                                 <div v-else-if="status.state === 'pending'" class="text-secondary">This usually takes under a minute.</div>
@@ -116,6 +137,31 @@ onBeforeUnmount(() => clearInterval(poll));
                                 />
                                 <span class="form-check-label">Send HTTP visitors to HTTPS</span>
                             </label>
+                            <template v-if="settings.mode === 'letsencrypt'">
+                                <label class="form-check form-switch m-0">
+                                    <input
+                                        class="form-check-input"
+                                        type="checkbox"
+                                        :checked="settings.auto_renew"
+                                        @change="setRenewal({ auto_renew: ($event.target as HTMLInputElement).checked })"
+                                    />
+                                    <span class="form-check-label">Renew automatically</span>
+                                </label>
+                                <div v-if="settings.auto_renew" class="d-flex align-items-center gap-2">
+                                    <span class="text-secondary">every</span>
+                                    <select
+                                        class="form-select form-select-sm w-auto"
+                                        aria-label="Renew every"
+                                        :value="settings.renew_days"
+                                        @change="setRenewal({ renew_days: Number(($event.target as HTMLSelectElement).value) })"
+                                    >
+                                        <option v-for="days in renewDays" :key="days" :value="days">{{ days }} days</option>
+                                    </select>
+                                </div>
+                                <button type="button" class="btn btn-sm" :disabled="settings.force_renew" @click="renewNow">
+                                    {{ settings.force_renew ? 'Renewing…' : 'Renew now' }}
+                                </button>
+                            </template>
                             <a :href="`https://${status.domain}`" class="ms-auto">Open https://{{ status.domain }}</a>
                             <button type="button" class="btn btn-sm btn-outline-danger" @click="turnOff">Turn off HTTPS</button>
                         </div>

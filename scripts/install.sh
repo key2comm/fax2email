@@ -206,6 +206,8 @@ configure_services() {
     systemctl enable fail2ban fax2email-firewall.service
     systemctl enable --now fax2email-firewall.path fax2email-firewall.timer
     systemctl enable --now fax2email-https.path fax2email-https.timer
+    # certbot's own renewal timer would ignore the portal's auto-renew setting; fax2email's daily check renews instead.
+    systemctl disable --now certbot.timer certbot-renew.timer 2>/dev/null || true
     # Restores HTTPS on a re-run (does nothing until HTTPS is turned on in the portal).
     systemctl start fax2email-https.service || true
     if [[ -n "$FAX_EMAIL_DOMAIN" ]]; then
