@@ -3,12 +3,16 @@
 # Install fax2email on a fresh Debian 13+ or Rocky Linux 10+ server.
 #
 # Run it from an unpacked release archive (see README.md):
-#   sudo ./fax2email-v0.1.0/scripts/install.sh [--server-name fax.example.com]
+#   sudo ./fax2email-v0.1.0/scripts/install.sh
 #
-# Options:
+# It walks you through a few questions (portal address, first Admin, email-to-fax
+# domain), shows a summary to confirm, then installs without further prompts.
+#
+# For automated installs, give the answers as options and add --unattended:
+#   --unattended         Don't ask anything; use the options below and existing settings.
 #   --server-name NAME   Hostname or IP the portal is reached at (default: this server's first IP)
-#   --admin-name NAME    Name for the first Admin login (prompted if omitted)
-#   --admin-email EMAIL  Email for the first Admin login (prompted if omitted)
+#   --admin-name NAME    Name for the first Admin login
+#   --admin-email EMAIL  Email for the first Admin login
 #   --fax-email-domain DOMAIN
 #                        Turn on email-to-fax: PDFs emailed to <number>@DOMAIN are faxed.
 #                        Point DOMAIN's MX record at this server. Kept on re-runs.
@@ -392,16 +396,127 @@ create_admin() {
     die "Could not create the Admin. Run: sudo -u www-data php $APP_DIR/artisan fax2email:create-admin"
 }
 
+# --- Guided setup -------------------------------------------------------------
+
+# Read one line from the terminal (stdin may be the piped installer itself).
+tty_read() {
+    local reply
+    if [[ "${2:-}" == secret ]]; then
+        IFS= read -r -s -p "$1" reply </dev/tty
+        echo >/dev/tty
+    else
+        IFS= read -r -p "$1" reply </dev/tty
+    fi
+    printf '%s' "$reply"
+}
+
+# ask <question> <default> <check function> <error message>: repeat until the answer passes.
+ask() {
+    local answer
+    while true; do
+        answer="$(tty_read "  $1${2:+ [$2]}: ")"
+        answer="${answer:-$2}"
+        if "$3" "$answer"; then
+            printf '%s' "$answer"
+            return
+        fi
+        echo "    $4" >/dev/tty
+    done
+}
+
+valid_host() { local h="${1,,}"; [[ "$h" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]*[a-z0-9])?$ || "$h" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; }
+valid_name() { [[ -n "${1// /}" && ${#1} -le 255 ]]; }
+valid_email() { [[ "$1" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]]; }
+valid_fax_domain() { local d="${1,,}"; [[ -z "$d" || "$d" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$ ]]; }
+
+walk_through() {
+    local fresh=0
+    [[ -f "$APP_DIR/.env" ]] || fresh=1
+    local default_server default_domain
+    default_server="$SERVER_NAME"
+    [[ -n "$default_server" || $fresh == 1 ]] || default_server="$(env_value APP_URL | sed -E 's#^https?://##; s#/.*$##')"
+    [[ -n "$default_server" ]] || default_server="$(hostname -I | awk '{print $1}')"
+    default_domain="$FAX_EMAIL_DOMAIN"
+    [[ -n "$default_domain" || $fresh == 1 ]] || default_domain="$(env_value FAX_EMAIL_DOMAIN)"
+
+    cat >/dev/tty <<EOF
+
+fax2email setup
+Answer a few questions; press Enter to accept the value in [brackets].
+Nothing is installed until you confirm at the end.
+
+1. Portal address
+   The hostname or IP address people will use to open the portal.
+EOF
+    SERVER_NAME="$(ask "Portal address" "$default_server" valid_host "Enter a hostname like fax.example.com or an IP like 203.0.113.10.")"
+    SERVER_NAME="${SERVER_NAME,,}"
+
+    if [[ $fresh == 1 && -z "$ADMIN_PASSWORD_FILE" ]]; then
+        cat >/dev/tty <<EOF
+
+2. First Admin login
+   The person who will manage the portal. They can invite everyone else.
+EOF
+        ADMIN_NAME="$(ask "Admin name" "$ADMIN_NAME" valid_name "Enter a name.")"
+        ADMIN_EMAIL="$(ask "Admin email" "$ADMIN_EMAIL" valid_email "Enter a valid email address.")"
+        local password confirm
+        while true; do
+            password="$(tty_read "  Admin password (at least 8 characters): " secret)"
+            if (( ${#password} < 8 )); then echo "    Too short." >/dev/tty; continue; fi
+            confirm="$(tty_read "  Type it again: " secret)"
+            [[ "$password" == "$confirm" ]] && break
+            echo "    The passwords don't match." >/dev/tty
+        done
+        # Handed to the create-admin step through a private file that is removed afterwards.
+        ADMIN_PASSWORD_FILE="$(mktemp -p /run fax2email-admin.XXXXXX)"
+        chmod 600 "$ADMIN_PASSWORD_FILE"
+        printf '%s' "$password" > "$ADMIN_PASSWORD_FILE"
+        WIZARD_PASSWORD_FILE="$ADMIN_PASSWORD_FILE"
+    fi
+
+    cat >/dev/tty <<EOF
+
+$([[ $fresh == 1 ]] && echo 3 || echo 2). Email to fax (optional)
+   People can fax by emailing PDFs to <fax number>@<this domain>, for example
+   15551234567@fax.yourdomain.com. Use a domain (or subdomain) you control and
+   point its MX record at this server. Leave blank to skip; you can run the
+   installer again later to turn it on.
+EOF
+    FAX_EMAIL_DOMAIN="$(ask "Email-to-fax domain, e.g. fax.yourdomain.com" "$default_domain" valid_fax_domain "Enter a domain like fax.yourdomain.com, or leave it blank.")"
+    FAX_EMAIL_DOMAIN="${FAX_EMAIL_DOMAIN,,}"
+
+    cat >/dev/tty <<EOF
+
+Summary
+   Portal address:   http://$SERVER_NAME
+EOF
+    [[ -n "$ADMIN_EMAIL" ]] && echo "   First Admin:      $ADMIN_NAME <$ADMIN_EMAIL>" >/dev/tty
+    if [[ -n "$FAX_EMAIL_DOMAIN" ]]; then
+        echo "   Email to fax:     <fax number>@$FAX_EMAIL_DOMAIN" >/dev/tty
+    else
+        echo "   Email to fax:     off" >/dev/tty
+    fi
+    echo >/dev/tty
+    local go
+    go="$(tty_read "Install now? [Y/n] ")"
+    if [[ "${go,,}" == n* ]]; then
+        echo "Nothing was changed."
+        exit 0
+    fi
+    echo
+}
+
 main() {
-    SERVER_NAME="" ADMIN_NAME="" ADMIN_EMAIL="" ADMIN_PASSWORD_FILE="" FAX_EMAIL_DOMAIN=""
+    SERVER_NAME="" ADMIN_NAME="" ADMIN_EMAIL="" ADMIN_PASSWORD_FILE="" FAX_EMAIL_DOMAIN="" UNATTENDED=0 WIZARD_PASSWORD_FILE=""
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            --unattended) UNATTENDED=1; shift ;;
             --server-name) SERVER_NAME="$2"; shift 2 ;;
             --admin-name) ADMIN_NAME="$2"; shift 2 ;;
             --admin-email) ADMIN_EMAIL="$2"; shift 2 ;;
             --fax-email-domain) FAX_EMAIL_DOMAIN="${2,,}"; shift 2 ;;
             --admin-password-file) ADMIN_PASSWORD_FILE="$(readlink -f "$2")"; shift 2 ;;
-            -h | --help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+            -h | --help) sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
             *) die "Unknown option: $1 (see --help)" ;;
         esac
     done
@@ -411,14 +526,21 @@ main() {
         || die "Run this from an unpacked release archive, not a source checkout."
     [[ "$SRC_DIR" != "$APP_DIR" ]] || die "This copy is already installed. Use: sudo fax2email-update"
     [[ -d "$APP_DIR/.git" ]] && die "$APP_DIR is a development checkout. Install on a different server."
-    if [[ -z "$ADMIN_PASSWORD_FILE" ]] && ! { : </dev/tty; } 2>/dev/null; then
-        die "The installer needs a terminal to ask for the Admin password (or use --admin-password-file)."
+    if [[ $UNATTENDED == 0 ]] && ! { : </dev/tty; } 2>/dev/null; then
+        die "The installer asks a few questions and needs a terminal. For automated installs use --unattended (see --help)."
+    fi
+    if [[ $UNATTENDED == 1 && ! -f "$APP_DIR/.env" ]] && [[ -z "$ADMIN_NAME" || -z "$ADMIN_EMAIL" || -z "$ADMIN_PASSWORD_FILE" ]]; then
+        die "--unattended on a new server also needs --admin-name, --admin-email and --admin-password-file."
     fi
     [[ -z "$ADMIN_PASSWORD_FILE" || -r "$ADMIN_PASSWORD_FILE" ]] || die "Cannot read $ADMIN_PASSWORD_FILE."
     cd /
 
     step "Checking the operating system"
     detect_os
+    if [[ $UNATTENDED == 0 ]]; then
+        trap '[[ -n "$WIZARD_PASSWORD_FILE" ]] && rm -f "$WIZARD_PASSWORD_FILE"' EXIT
+        walk_through
+    fi
     [[ -n "$SERVER_NAME" ]] || SERVER_NAME="$(hostname -I | awk '{print $1}')"
     echo "    Portal address: http://$SERVER_NAME"
 
@@ -439,12 +561,17 @@ main() {
     setup_app
     step "Configuring Nginx"
     configure_nginx
-    # A re-run without --fax-email-domain keeps the domain set last time.
-    [[ -n "$FAX_EMAIL_DOMAIN" ]] || FAX_EMAIL_DOMAIN="$(env_value FAX_EMAIL_DOMAIN)"
+    # An unattended re-run without --fax-email-domain keeps the domain set last time.
+    [[ -n "$FAX_EMAIL_DOMAIN" || $UNATTENDED == 0 ]] || FAX_EMAIL_DOMAIN="$(env_value FAX_EMAIL_DOMAIN)"
     if [[ -n "$FAX_EMAIL_DOMAIN" ]]; then
         [[ "$FAX_EMAIL_DOMAIN" =~ ^([a-z0-9]([a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$ ]] || die "Invalid --fax-email-domain: $FAX_EMAIL_DOMAIN"
         step "Setting up email-to-fax for $FAX_EMAIL_DOMAIN (Postfix and OpenDKIM)"
         configure_email_to_fax "$FAX_EMAIL_DOMAIN"
+    elif [[ -n "$(env_value FAX_EMAIL_DOMAIN)" ]]; then
+        # Left blank in the walk-through on a server that had it on: turn it off.
+        step "Turning off email-to-fax"
+        set_env FAX_EMAIL_DOMAIN ""
+        systemctl disable --now fax2email-email-in.path fax2email-opendkim postfix 2>/dev/null || true
     fi
     step "Installing FreeSWITCH (built from source; this takes a few minutes)"
     install_freeswitch

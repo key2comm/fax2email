@@ -4,7 +4,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const tabs = [
-    { title: 'Settings', href: '/admin/mail' },
+    { title: 'SMTP Settings', href: '/admin/mail' },
     { title: 'Mail log', href: '/admin/mail/log' },
     { title: 'Email to fax', href: '/admin/mail/email-to-fax' },
 ];
