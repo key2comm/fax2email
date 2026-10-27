@@ -8,6 +8,7 @@ use App\Models\Account;
 use App\Models\Fax;
 use App\Models\FaxEmail;
 use App\Models\FaxNumber;
+use App\Models\SenderDomain;
 use App\Models\User;
 use App\Support\Fax\EmailToFax;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -173,11 +174,50 @@ class EmailToFaxTest extends TestCase
 
         // Verified by SPF for acme.test, but not a portal user.
         $stranger = app(EmailToFax::class)->handle($this->message(from: 'bob@acme.test'));
-        $this->assertSame('The sender is not a portal user with a fax number.', $stranger->reason);
+        $this->assertSame('The sender is not a portal user or at an allowed domain of an account with a fax number.', $stranger->reason);
 
         Mail::assertSent(FaxEmailRejected::class, 2);
         Mail::assertSent(FaxEmailRejected::class, fn ($mail) => $mail->hasTo('bob@acme.test'));
         $this->assertSame(0, Fax::count());
+    }
+
+    public function test_anyone_verified_at_an_allowed_domain_can_fax_by_email()
+    {
+        $jane = $this->jane();
+        SenderDomain::create(['account_id' => $jane->account_id, 'domain' => 'acme.test']);
+
+        // Bob was never invited, but acme.test is allowed and SPF proves he sent it.
+        $log = app(EmailToFax::class)->handle($this->message(from: 'Bob@Acme.test'));
+
+        $this->assertSame('accepted', $log->status, (string) $log->reason);
+        $fax = Fax::sole();
+        $this->assertSame([$jane->account_id, null, 'bob@acme.test'], [$fax->account_id, $fax->user_id, $fax->sender_email]);
+        Mail::assertNothingSent();
+    }
+
+    public function test_an_allowed_domain_still_needs_a_verified_sender()
+    {
+        $jane = $this->jane();
+        SenderDomain::create(['account_id' => $jane->account_id, 'domain' => 'acme.test']);
+
+        $log = app(EmailToFax::class)->handle($this->message(from: 'bob@acme.test', clientIp: '203.0.113.66'));
+
+        $this->assertSame('rejected', $log->status);
+        $this->assertSame(0, Fax::count());
+        Mail::assertNothingSent();
+    }
+
+    public function test_a_portal_user_sends_for_their_own_account_even_if_another_allows_their_domain()
+    {
+        $jane = $this->jane();
+        $other = Account::factory()->create();
+        FaxNumber::create(['account_id' => $other->id, 'number' => '15557654321']);
+        SenderDomain::create(['account_id' => $other->id, 'domain' => 'acme.test']);
+
+        app(EmailToFax::class)->handle($this->message());
+
+        $fax = Fax::sole();
+        $this->assertSame([$jane->account_id, $jane->id], [$fax->account_id, $fax->user_id]);
     }
 
     public function test_only_fax_numbers_at_the_fax_domain_are_accepted()

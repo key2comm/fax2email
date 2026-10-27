@@ -12,6 +12,7 @@ use App\Http\Controllers\FaxController;
 use App\Http\Controllers\FaxNumberController;
 use App\Http\Controllers\FreeswitchXmlController;
 use App\Http\Controllers\InvitationController;
+use App\Http\Controllers\SenderDomainController;
 use App\Http\Controllers\SendFaxController;
 use App\Http\Controllers\UserController;
 use App\Models\Fax;
@@ -66,6 +67,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');
     Route::delete('invitations/{invitation}', [InvitationController::class, 'destroy'])->name('invitations.destroy');
+
+    Route::post('sender-domains', [SenderDomainController::class, 'store'])->name('sender-domains.store');
+    Route::delete('sender-domains/{senderDomain}', [SenderDomainController::class, 'destroy'])->name('sender-domains.destroy');
 
     Route::get('admin/mail', [MailSettingsController::class, 'edit'])->name('admin.mail.edit');
     Route::put('admin/mail', [MailSettingsController::class, 'update'])->name('admin.mail.update');

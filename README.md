@@ -63,7 +63,13 @@ a number, choose which of your numbers to send from, and attach up to 10 PDFs (2
 They are faxed as one fax, in the order shown. Everyone in a company shares one **Address book**.
 
 **By email:** email PDFs to `<fax number>@<fax domain>`, e.g. `15551234567@fax.example.com`,
-from the address you log in with. Several PDFs become one fax, in attachment order. Turn this on
+from the address you log in with. Several PDFs become one fax, in attachment order.
+
+So that people don't all need a portal login, Account Owners (and Admins and Provisioners) can
+add **Sender domains** to an account under **Users**: anyone at that domain can then fax by email
+from the account's first enabled number, without being invited. Invited users still send for
+their own account. Each domain belongs to one account, matches exactly (add subdomains
+separately), and webmail domains such as gmail.com can't be added. Turn this on
 with `--fax-email-domain fax.example.com` when running the installer, then point that domain's
 MX record at the server (port 25).
 

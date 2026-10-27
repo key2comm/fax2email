@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Role;
 use App\Models\Account;
 use App\Models\Invitation;
+use App\Models\SenderDomain;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -72,6 +73,10 @@ class UserController extends Controller
                 'is_staff' => $role->isStaff(),
             ]),
             'invitableRoles' => collect($viewer->role->assignableRoles())->map->value,
+            'senderDomains' => $account ? $account->senderDomains()->orderBy('domain')->get()
+                ->map(fn (SenderDomain $domain) => $domain->only('id', 'domain')) : [],
+            'canManageSenderDomains' => $account !== null && Gate::allows('create', [SenderDomain::class, $account]),
+            'faxEmailDomain' => config('fax2email.mail.domain'),
         ]);
     }
 

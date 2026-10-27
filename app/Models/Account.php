@@ -58,4 +58,12 @@ class Account extends Model
     {
         return $this->hasMany(Invitation::class);
     }
+
+    /**
+     * @return HasMany<SenderDomain, $this>
+     */
+    public function senderDomains(): HasMany
+    {
+        return $this->hasMany(SenderDomain::class);
+    }
 }

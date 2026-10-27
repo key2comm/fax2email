@@ -4,7 +4,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { useDateTime } from '@/lib/datetime';
 import { type SharedData } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
-import { IconUserPlus } from '@tabler/icons-vue';
+import { IconPlus, IconUserPlus } from '@tabler/icons-vue';
 import { computed, ref, watch } from 'vue';
 
 interface AccountRef {
@@ -28,6 +28,11 @@ interface UserRow {
     can_delete: boolean;
 }
 
+interface SenderDomainRow {
+    id: number;
+    domain: string;
+}
+
 interface InvitationRow {
     id: number;
     email: string;
@@ -44,6 +49,9 @@ const props = defineProps<{
     accounts: AccountRef[];
     roles: RoleOption[];
     invitableRoles: string[];
+    senderDomains: SenderDomainRow[];
+    canManageSenderDomains: boolean;
+    faxEmailDomain: string | null;
 }>();
 
 const page = usePage<SharedData>();
@@ -81,6 +89,18 @@ const removeUser = (user: UserRow) => {
 
 const revoke = (invitation: InvitationRow) => {
     router.delete(route('invitations.destroy', invitation.id), { preserveScroll: true });
+};
+
+const domainForm = useForm({ domain: '', account_id: props.account?.id ?? null });
+
+const addDomain = () => {
+    domainForm.post(route('sender-domains.store'), { preserveScroll: true, onSuccess: () => domainForm.reset('domain') });
+};
+
+const removeDomain = (domain: SenderDomainRow) => {
+    if (confirm(`Stop letting everyone at ${domain.domain} fax by email? Invited users there can still send.`)) {
+        router.delete(route('sender-domains.destroy', domain.id), { preserveScroll: true });
+    }
 };
 
 const { formatDate } = useDateTime();
@@ -219,6 +239,61 @@ const { formatDate } = useDateTime();
                         </table>
                     </div>
                 </div>
+            </div>
+
+            <div v-if="account && canManageSenderDomains" class="col-12">
+                <form class="card" @submit.prevent="addDomain" novalidate>
+                    <div class="card-header">
+                        <div>
+                            <h3 class="card-title">Sender domains</h3>
+                            <p class="card-subtitle">
+                                Anyone with an email address at these domains can fax by email<span v-if="faxEmailDomain">
+                                    (to <code>&lt;fax number&gt;@{{ faxEmailDomain }}</code
+                                    >)</span
+                                >, without being invited. Only invited users can log in to the portal.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-md">
+                                <label class="form-label" for="sender-domain">Domain</label>
+                                <input
+                                    id="sender-domain"
+                                    v-model="domainForm.domain"
+                                    type="text"
+                                    class="form-control"
+                                    :class="{ 'is-invalid': domainForm.errors.domain }"
+                                    placeholder="business.com"
+                                    required
+                                />
+                            </div>
+                            <div class="col-md-auto">
+                                <button type="submit" class="btn btn-primary w-100" :disabled="domainForm.processing">
+                                    <IconPlus class="icon" />
+                                    Add domain
+                                </button>
+                            </div>
+                        </div>
+                        <InputError :message="domainForm.errors.domain || domainForm.errors.account_id" />
+                        <p class="form-hint mt-2 mb-0">
+                            Subdomains are separate: add sales.business.com too if people send from there. Webmail domains such as gmail.com can't be
+                            added.
+                        </p>
+                    </div>
+                    <div v-if="senderDomains.length" class="table-responsive">
+                        <table class="table table-vcenter card-table">
+                            <tbody>
+                                <tr v-for="domain in senderDomains" :key="domain.id">
+                                    <td class="fw-medium">{{ domain.domain }}</td>
+                                    <td class="w-1">
+                                        <button type="button" class="btn btn-sm btn-outline-danger" @click="removeDomain(domain)">Remove</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
             </div>
         </div>
     </AppLayout>
