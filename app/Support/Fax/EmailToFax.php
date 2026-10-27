@@ -7,6 +7,7 @@ use App\Mail\FaxEmailRejected;
 use App\Models\Contact;
 use App\Models\FaxEmail;
 use App\Models\FaxNumber;
+use App\Models\SenderDomain;
 use App\Models\User;
 use App\Support\PhoneNumber;
 use Illuminate\Support\Facades\Mail;
@@ -26,7 +27,8 @@ use ZBateson\MailMimeParser\Message;
  * sender is proven: SPF passes for the envelope sender, or OpenDKIM (on this
  * server) reports a passing DKIM signature, and that domain matches the From
  * address's domain (DMARC-style alignment). The sender must also be a portal
- * user whose account has a fax number. Unproven mail is dropped silently, so
+ * user, or at one of an account's sender domains, and that account must have
+ * a fax number. Unproven mail is dropped silently, so
  * forged messages never cause emails to the innocent address they claimed.
  */
 class EmailToFax
@@ -70,12 +72,14 @@ class EmailToFax
         }
 
         // From here on the sender is genuine, so it is safe to tell them what went wrong.
+        // A portal user sends for their own account; anyone else needs an account that allows their domain.
         $user = User::whereRaw('lower(email) = ?', [$from])->first();
-        $number = $user?->account_id
-            ? FaxNumber::where('account_id', $user->account_id)->where('enabled', true)->orderBy('id')->first()
+        $accountId = $user?->account_id ?? SenderDomain::where('domain', $fromDomain)->value('account_id');
+        $number = $accountId
+            ? FaxNumber::where('account_id', $accountId)->where('enabled', true)->orderBy('id')->first()
             : null;
-        if (! $user || ! $number) {
-            return $this->reject($log, 'The sender is not a portal user with a fax number.', notify: $from);
+        if (! $number) {
+            return $this->reject($log, 'The sender is not a portal user or at an allowed domain of an account with a fax number.', notify: $from);
         }
 
         $pdfs = collect($message->getAllAttachmentParts())->filter(fn ($part) => $part->getContentType() === 'application/pdf'
@@ -104,9 +108,9 @@ class EmailToFax
         $fax = app(FaxOutbox::class)->queue(
             $number,
             $destination,
-            Contact::where('account_id', $user->account_id)->where('fax_number', $destination)->value('name'),
+            Contact::where('account_id', $accountId)->where('fax_number', $destination)->value('name'),
             $paths,
-            $user,
+            $user?->account_id ? $user : null,
             $from,
             'email',
         );
