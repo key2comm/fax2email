@@ -20,7 +20,17 @@ class Account extends Model
      */
     protected $fillable = [
         'name',
+        'timezone',
         'is_active',
+    ];
+
+    /**
+     * Fax headers show UTC until a time zone is picked.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'timezone' => 'UTC',
     ];
 
     /**

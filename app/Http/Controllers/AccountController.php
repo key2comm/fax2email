@@ -23,6 +23,7 @@ class AccountController extends Controller
             ->map(fn (Account $account) => [
                 'id' => $account->id,
                 'name' => $account->name,
+                'timezone' => $account->timezone,
                 'is_active' => $account->is_active,
                 'users_count' => $account->users_count,
                 'owners_count' => $account->owners_count,
@@ -31,6 +32,7 @@ class AccountController extends Controller
         return Inertia::render('accounts/Index', [
             'accounts' => $accounts,
             'canDelete' => $request->user()->role === Role::Admin,
+            'timezones' => \DateTimeZone::listIdentifiers(),
         ]);
     }
 
@@ -40,6 +42,7 @@ class AccountController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'timezone' => ['sometimes', 'required', 'timezone:all'],
         ]);
 
         $account = Account::create($validated);
@@ -54,6 +57,7 @@ class AccountController extends Controller
 
         $account->update($request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'timezone' => ['sometimes', 'required', 'timezone:all'],
             'is_active' => ['required', 'boolean'],
         ]));
 
