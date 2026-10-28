@@ -4,9 +4,6 @@ A self-hosted, multi-tenant fax ↔ email service for Debian 13+ and Rocky Linux
 Faxes received on a business's numbers are emailed to them, and emails can be sent
 out as faxes. Built on Laravel, Vue (Inertia), PostgreSQL, Nginx and FreeSWITCH.
 
-> **Status:** early development. Receiving and sending faxes work end to end: from the portal,
-> by email, and to email.
-
 ## Roles
 
 | Role | Can do |
@@ -69,9 +66,7 @@ So that people don't all need a portal login, Account Owners (and Admins and Pro
 add **Sender domains** to an account under **Users**: anyone at that domain can then fax by email
 from the account's first enabled number, without being invited. Invited users still send for
 their own account. Each domain belongs to one account, matches exactly (add subdomains
-separately), and webmail domains such as gmail.com can't be added. Turn this on
-with `--fax-email-domain fax.example.com` when running the installer, then point that domain's
-MX record at the server (port 25).
+separately), and webmail domains such as gmail.com can't be added. 
 
 Because email From addresses are easy to forge, an email is only faxed when the sender passes
 SPF, or a DKIM signature checked by OpenDKIM on this server, for the same domain as the From
@@ -103,6 +98,9 @@ back if Nginx rejects the new one, so a mistake can't take the portal offline.
 Times are stored in UTC and shown in UTC by default. Each user can pick their own time zone
 under **Profile**, and the portal then shows every date and time in that zone.
 
+**Account TimeZones** Admin and Provisioners can set the account time zone so the header matches when sending faxes.
+
+
 ## Firewall
 
 Admins manage the firewall under **Firewall** in the portal:
@@ -112,7 +110,7 @@ Admins manage the firewall under **Firewall** in the portal:
   can be lifted.
 - **Whitelist:** addresses that are never blocked or banned. Add your office and your SIP
   carriers so they cannot be locked out.
-- **Settings:** fail2ban watches SIP (FreeSWITCH), portal logins and SSH. By default an
+- **Settings:** fail2ban watches SIP (FreeSWITCH), portal logins and SSH. By default, an
   address is banned for 1 day after 5 failures within 10 minutes, and an address banned
   3 times within 7 days is banned for 30 days.
 - **Activity:** history of every ban, block and change, kept for 180 days.
@@ -125,42 +123,13 @@ service (`fax2email-firewall-apply`, run by systemd) validates them and applies 
 fax2email's own nftables table and to fail2ban, within a few seconds. Every minute it also
 copies fail2ban's current bans back into the portal.
 
-## Where things live
-
-Everything belonging to the application is under `/var/www/html`:
-
-| Path | Contents |
-|---|---|
-| `/var/www/html/fax2email` | The application. Nginx serves only its `public/` folder. |
-| `/var/www/html/fax2email/.env` | Settings and secrets. Never served to the web. |
-| `/var/www/html/fax2email/storage` | Faxes, logs and uploaded files. |
-| `/var/www/html/fax2email-backups` | Automatic backups taken before each update. |
-| `/usr/local/sbin/fax2email-*` | The update and firewall commands, which run as root. They're kept outside the web folder so the website can't change them. |
-
-Files are owned by `www-data:www-data` on both Debian and Rocky Linux.
-
 ## Installing
 
-Requires a fresh **Debian 13+** or **Rocky Linux 10+** server and a user with `sudo`.
-
-One command downloads the latest release, checks it, and starts the guided setup. While the
-repository is private, use a [fine-grained GitHub token](https://github.com/settings/personal-access-tokens)
-with read-only **Contents** access to `key2comm/fax2email`:
-
-```bash
-TOKEN=github_pat_xxx
-curl -fsSL -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github.raw" \
-  https://api.github.com/repos/key2comm/fax2email/contents/scripts/bootstrap.sh | sudo FAX2EMAIL_TOKEN=$TOKEN bash
-```
-
-The token is saved so `sudo fax2email-update` can fetch updates. Once the repository is public:
+Requires a fresh **Debian 13+** or **Rocky Linux 10+** server and a user with `sudo` or 'root'
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/key2comm/fax2email/main/scripts/bootstrap.sh | sudo bash
 ```
-
-Or download the release archive yourself, unpack it, and run `sudo ./fax2email-v*/scripts/install.sh`.
-
 The installer walks you through a few questions, with defaults in [brackets]:
 
 1. **Portal address**: the hostname or IP people will use to open the portal.
@@ -172,15 +141,6 @@ It shows a summary to confirm, then installs everything without further prompts:
 PostgreSQL, FreeSWITCH (built from source, a few minutes), fail2ban, the firewall rules, and
 Postfix/OpenDKIM if email-to-fax is on. It is safe to run again: it suggests your current
 settings, keeps the database and Admin, and leaving the email-to-fax domain blank turns it off.
-
-For automated installs, pass the answers as options with `--unattended`:
-
-```bash
-sudo ./fax2email-v*/scripts/install.sh --unattended --server-name fax.example.com \
-  --admin-name "Jane Admin" --admin-email jane@example.com --admin-password-file /tmp/admin-pw \
-  --fax-email-domain fax.example.com
-rm /tmp/admin-pw   # the file holding the Admin password
-```
 
 When it finishes, log in at `http://<portal address>` and set up the outgoing mail server
 under **Mail server → SMTP Settings**.
@@ -245,39 +205,12 @@ These only listen on the server's local address.
 ```bash
 sudo fax2email-update --check   # is there a new version?
 sudo fax2email-update           # install the latest release
-sudo fax2email-update 0.3.0     # install (or roll back to) a specific release
+sudo fax2email-update 0.1.0     # install (or roll back to) a specific release
 ```
 
 The updater puts the site in maintenance mode, backs up the code and database,
 installs the release, runs database migrations, and brings the site back. If any
-step fails it restores the backup automatically. The last 5 backups are kept.
+step fails, it restores the backup automatically. The last 5 backups are kept.
 
-While the GitHub repository is private, set `UPDATE_GITHUB_TOKEN` in `.env` to a
-[fine-grained token](https://github.com/settings/personal-access-tokens) with
-read-only access to this repository's **Contents**.
-
-## Releasing a new version (maintainers)
-
-```bash
-scripts/release.sh 0.2.0
-```
-
-This bumps `VERSION`, commits, tags `v0.2.0` and pushes. GitHub Actions then runs the
-tests, builds an archive that includes `vendor/` and the compiled frontend (so servers
-never need Composer or Node), and publishes it as a GitHub release.
-
-Versions follow [semantic versioning](https://semver.org): bump the patch number for
-fixes, the minor number for new features, and the major number for breaking changes.
-
-## Development
-
-```bash
-composer install
-npm install
-cp .env.example .env && php artisan key:generate
-php artisan migrate --seed   # demo users, all with password "password"
-npm run dev
-php artisan test
-```
-
+### Lost your Admin password. Add a new one below
 Create a real admin with `php artisan fax2email:create-admin`.
