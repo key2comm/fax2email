@@ -213,4 +213,4 @@ installs the release, runs database migrations, and brings the site back. If any
 step fails, it restores the backup automatically. The last 5 backups are kept.
 
 ### Lost your Admin password. Add a new one below
-Create a real admin with `php artisan fax2email:create-admin`.
+Change directory to /var/www/html/fax2email | Then run `php artisan fax2email:create-admin`. 
