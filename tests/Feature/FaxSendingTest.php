@@ -79,7 +79,8 @@ class FaxSendingTest extends TestCase
      */
     private function sender(): array
     {
-        $account = Account::factory()->create(['name' => 'Acme Dental']);
+        // A zone without daylight saving, so the header offset doesn't depend on the date.
+        $account = Account::factory()->create(['name' => 'Acme Dental', 'timezone' => 'Asia/Kolkata']);
         SipTrunk::forceCreate(['name' => 'Provider', 'enabled' => true, 'auth_type' => 'ip', 'transport' => 'udp', 'host' => '203.0.113.10', 'port' => 5060, 'dial_format' => 'e164_plus']);
         $number = FaxNumber::create(['account_id' => $account->id, 'number' => '15551234567']);
 
@@ -89,6 +90,17 @@ class FaxSendingTest extends TestCase
     private function pdf(string $name = 'letter.pdf'): UploadedFile
     {
         return UploadedFile::fake()->createWithContent($name, "%PDF-1.4\n%%EOF\n");
+    }
+
+    public function test_the_header_time_zone_is_the_accounts_current_offset_as_a_posix_string()
+    {
+        $this->assertSame('UTC0', FaxOutbox::headerTimezone('UTC'));
+        $this->assertSame('UTC0', FaxOutbox::headerTimezone(null));
+        $this->assertSame('JST-9', FaxOutbox::headerTimezone('Asia/Tokyo'));
+        $this->assertSame('IST-5:30', FaxOutbox::headerTimezone('Asia/Kolkata'));
+        // Zones whose abbreviation is a number get a placeholder name spandsp accepts.
+        $this->assertSame('LOC3', FaxOutbox::headerTimezone('America/Sao_Paulo'));
+        $this->assertContains(FaxOutbox::headerTimezone('America/Toronto'), ['EST5', 'EDT4']);
     }
 
     public function test_everyone_in_an_account_shares_the_address_book()
@@ -168,6 +180,7 @@ class FaxSendingTest extends TestCase
         $this->assertStringContainsString("fax2email_fax_id={$fax->id}", $this->commands[0]);
         $this->assertStringContainsString('origination_caller_id_number=+15551234567', $this->commands[0]);
         $this->assertStringContainsString("fax_header='Acme Dental'", $this->commands[0], 'Values with spaces are quoted');
+        $this->assertStringContainsString('fax_timezone=IST-5:30', $this->commands[0], "The header shows the account's local time");
         Storage::disk('local')->assertMissing("faxes/uploads/{$fax->id}/00.pdf");
 
         app(FaxOutbox::class)->recordHangup([

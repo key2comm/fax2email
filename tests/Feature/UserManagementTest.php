@@ -184,6 +184,29 @@ class UserManagementTest extends TestCase
         $this->assertModelMissing($account);
     }
 
+    public function test_staff_can_set_an_accounts_time_zone()
+    {
+        $provisioner = User::factory()->provisioner()->create();
+
+        $this->actingAs($provisioner)->post('/accounts', ['name' => 'Acme Dental', 'timezone' => 'America/Toronto'])->assertSessionHasNoErrors();
+        $account = Account::sole();
+        $this->assertSame('America/Toronto', $account->timezone);
+
+        $this->actingAs($provisioner)->patch("/accounts/{$account->id}", ['name' => 'Acme Dental', 'timezone' => 'America/Vancouver', 'is_active' => true])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('America/Vancouver', $account->fresh()->timezone);
+
+        // Enabling or disabling an account leaves its zone alone.
+        $this->actingAs($provisioner)->patch("/accounts/{$account->id}", ['name' => 'Acme Dental', 'is_active' => false])->assertSessionHasNoErrors();
+        $this->assertSame('America/Vancouver', $account->fresh()->timezone);
+
+        $this->actingAs($provisioner)->patch("/accounts/{$account->id}", ['name' => 'Acme Dental', 'timezone' => 'Mars/Olympus', 'is_active' => true])
+            ->assertSessionHasErrors('timezone');
+        $this->actingAs(User::factory()->owner($account)->create())
+            ->patch("/accounts/{$account->id}", ['name' => 'Acme Dental', 'timezone' => 'UTC', 'is_active' => true])->assertForbidden();
+        $this->assertSame('America/Vancouver', $account->fresh()->timezone);
+    }
+
     public function test_invitation_can_be_accepted_once()
     {
         $account = Account::factory()->create();

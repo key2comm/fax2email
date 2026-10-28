@@ -128,6 +128,7 @@ class FaxOutbox
             'origination_caller_id_name' => $this->clean($from->account->name, 30),
             'fax_ident' => mb_substr('+'.$from->number, 0, 20),
             'fax_header' => $this->clean($from->account->name, 40),
+            'fax_timezone' => self::headerTimezone($from->account->timezone),
             'fax_enable_t38' => 'true',
             'fax_enable_t38_request' => 'true',
             'fax_use_ecm' => 'true',
@@ -257,6 +258,24 @@ class FaxOutbox
                 $fax->update(['email_error' => $e->getMessage()]);
             }
         }
+    }
+
+    /**
+     * The zone for the time printed in the fax header, as a POSIX TZ string
+     * fixed at the zone's current offset (e.g. "EDT4" for Toronto in summer).
+     * spandsp only understands POSIX strings, and a call is over long before
+     * the offset could change; each retry works it out again.
+     */
+    public static function headerTimezone(?string $zone): string
+    {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone($zone ?: 'UTC'));
+        // POSIX offsets count hours west of UTC, so the sign is flipped.
+        $west = -$now->getOffset();
+        $offset = ($west < 0 ? '-' : '').intdiv(abs($west), 3600).(abs($west) % 3600 ? sprintf(':%02d', intdiv(abs($west) % 3600, 60)) : '');
+        // spandsp needs a name of three or more letters; zones like "+0530" don't have one.
+        $name = preg_match('/^[A-Za-z]{3,}$/', $now->format('T')) ? $now->format('T') : 'LOC';
+
+        return $name.$offset;
     }
 
     /**

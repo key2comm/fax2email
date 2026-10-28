@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import InputError from '@/components/InputError.vue';
+import TimezoneSelect from '@/components/TimezoneSelect.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { IconPlus } from '@tabler/icons-vue';
+import { type SharedData } from '@/types';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { IconPencil, IconPlus } from '@tabler/icons-vue';
+import { ref } from 'vue';
 
 interface AccountRow {
     id: number;
     name: string;
+    timezone: string;
     is_active: boolean;
     users_count: number;
     owners_count: number;
@@ -15,12 +19,35 @@ interface AccountRow {
 defineProps<{
     accounts: AccountRow[];
     canDelete: boolean;
+    timezones: string[];
 }>();
 
-const form = useForm({ name: '' });
+// New accounts start in the zone of whoever creates them.
+const page = usePage<SharedData>();
+const editing = ref<AccountRow | null>(null);
+const form = useForm({ name: '', timezone: page.props.auth.user.timezone || 'UTC', is_active: true as boolean });
 
-const create = () => {
-    form.post(route('accounts.store'), { onSuccess: () => form.reset() });
+const edit = (account: AccountRow) => {
+    editing.value = account;
+    form.clearErrors();
+    form.name = account.name;
+    form.timezone = account.timezone;
+    form.is_active = account.is_active;
+};
+
+const reset = () => {
+    editing.value = null;
+    form.reset();
+    form.clearErrors();
+};
+
+const save = () => {
+    const options = { preserveScroll: true, onSuccess: reset };
+    if (editing.value) {
+        form.patch(route('accounts.update', editing.value.id), options);
+    } else {
+        form.post(route('accounts.store'), options);
+    }
 };
 
 const toggleActive = (account: AccountRow) => {
@@ -40,11 +67,14 @@ const destroy = (account: AccountRow) => {
     <AppLayout title="Accounts" pretitle="Each account is a separate business">
         <div class="row row-cards">
             <div class="col-12">
-                <form class="card" @submit.prevent="create" novalidate>
+                <form class="card" @submit.prevent="save" novalidate>
+                    <div class="card-header">
+                        <h3 class="card-title">{{ editing ? `Edit ${editing.name}` : 'New account' }}</h3>
+                    </div>
                     <div class="card-body">
-                        <label class="form-label" for="name">New account</label>
-                        <div class="row g-2">
-                            <div class="col">
+                        <div class="row g-3">
+                            <div class="col-lg-4">
+                                <label class="form-label required" for="name">Name</label>
                                 <input
                                     id="name"
                                     v-model="form.name"
@@ -56,12 +86,25 @@ const destroy = (account: AccountRow) => {
                                 />
                                 <InputError :message="form.errors.name" />
                             </div>
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-primary" :disabled="form.processing">
-                                    <IconPlus class="icon" />
-                                    Create account
-                                </button>
+                            <div class="col-lg-8">
+                                <label class="form-label" for="timezone">Time zone</label>
+                                <TimezoneSelect
+                                    id="timezone"
+                                    v-model="form.timezone"
+                                    :timezones="timezones"
+                                    :error="form.errors.timezone"
+                                    hint="The date and time in the header of faxes this account sends are shown in this zone."
+                                />
                             </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="btn-list justify-content-end">
+                            <button v-if="editing" type="button" class="btn" @click="reset">Cancel</button>
+                            <button type="submit" class="btn btn-primary" :disabled="form.processing">
+                                <IconPlus v-if="!editing" class="icon" />
+                                {{ editing ? 'Save' : 'Create account' }}
+                            </button>
                         </div>
                     </div>
                 </form>
@@ -74,6 +117,7 @@ const destroy = (account: AccountRow) => {
                             <thead>
                                 <tr>
                                     <th>Name</th>
+                                    <th>Time zone</th>
                                     <th>Owners</th>
                                     <th>Users</th>
                                     <th>Status</th>
@@ -81,10 +125,11 @@ const destroy = (account: AccountRow) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="account in accounts" :key="account.id">
+                                <tr v-for="account in accounts" :key="account.id" :class="{ 'bg-primary-lt': editing?.id === account.id }">
                                     <td>
                                         <Link :href="route('users.index', { account: account.id })" class="fw-medium">{{ account.name }}</Link>
                                     </td>
+                                    <td class="text-secondary">{{ account.timezone.replace(/_/g, ' ') }}</td>
                                     <td>
                                         <span v-if="account.owners_count === 0" class="badge bg-red-lt">None</span>
                                         <template v-else>{{ account.owners_count }}</template>
@@ -97,6 +142,9 @@ const destroy = (account: AccountRow) => {
                                     <td>
                                         <div class="btn-list flex-nowrap">
                                             <Link :href="route('users.index', { account: account.id })" class="btn btn-sm">Users</Link>
+                                            <button type="button" class="btn btn-sm" :aria-label="`Edit ${account.name}`" @click="edit(account)">
+                                                <IconPencil class="icon" />
+                                            </button>
                                             <button type="button" class="btn btn-sm" @click="toggleActive(account)">
                                                 {{ account.is_active ? 'Disable' : 'Enable' }}
                                             </button>
@@ -107,7 +155,7 @@ const destroy = (account: AccountRow) => {
                                     </td>
                                 </tr>
                                 <tr v-if="accounts.length === 0">
-                                    <td colspan="5" class="text-center text-secondary py-4">No accounts yet. Create the first one above.</td>
+                                    <td colspan="6" class="text-center text-secondary py-4">No accounts yet. Create the first one above.</td>
                                 </tr>
                             </tbody>
                         </table>
