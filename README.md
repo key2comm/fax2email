@@ -125,7 +125,7 @@ copies fail2ban's current bans back into the portal.
 
 ## Installing
 
-Requires a fresh **Debian 13+** or **Rocky Linux 10+** server and a user with `sudo` or 'root'
+Requires a fresh **Debian 13+** or **Rocky Linux 10+** server and a user with `sudo` or `root`
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/key2comm/fax2email/main/scripts/bootstrap.sh | sudo bash
